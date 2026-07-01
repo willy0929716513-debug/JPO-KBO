@@ -60,6 +60,20 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
    `docs/data/history.json`（近 90 次執行的訊號歷史，供前端畫趨勢圖）。GitHub Actions
    (`update_signals.yml`) 每個交易日自動執行一次並提交更新，儀表板隨之自動更新。
 
+## 實盤交易介面（預設停用，需自行設定金鑰才會啟動）
+
+`src/broker/` 底下每個介面都遵守同一個原則：**沒有設定對應金鑰/連線就無法建構物件，會直接
+raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系統也不會意外連上真實帳戶下單。
+
+| 介面 | 涵蓋市場 | 啟動條件 |
+|---|---|---|
+| `PaperBroker`（預設） | 全部，純模擬 | 不需要任何設定，永遠可用 |
+| `CCXTBroker` | 加密貨幣：Binance / Bybit / OKX / Coinbase / Kraken / 其他 ccxt 支援的交易所（改 `EXCHANGE_ID` 即可切換） | `.env` 填 `EXCHANGE_API_KEY` + `EXCHANGE_API_SECRET`（部分交易所如 OKX 還需要 `EXCHANGE_API_PASSWORD`）。預設 `EXCHANGE_USE_TESTNET=true` 會走交易所的測試網，要接真實資金要自己改成 `false` |
+| `AlpacaBroker` | 美股 / ETF | `.env` 填 `ALPACA_API_KEY` + `ALPACA_SECRET_KEY`（`pip install alpaca-trade-api`） |
+| `IBKRBroker` | 全球股票/ETF/期貨/外匯/選擇權（Interactive Brokers） | `.env` 設 `IBKR_ENABLED=true`，且本機要有 TWS 或 IB Gateway 開著並啟用 API（`pip install ib_async`）。預設 port 7497 是 TWS 的**模擬帳戶**連接埠 |
+
+用法：`from src.broker import get_broker; broker = get_broker("live", asset_class="crypto")` 會依資產類別自動選對應的介面；沒對應金鑰時會拋出清楚的錯誤訊息而不是靜默失敗。目前 `daily_run.py` pipeline 本身**不會呼叫這些介面下單**，只負責產生訊號——要接自動下單，需要你自行在 pipeline 或另一支腳本中，讀取 `CombinedSignal` 後呼叫 `broker.submit_order(...)`，並強烈建議先在 Paper Trading / 測試網跑過一段時間再考慮接真實資金。
+
 ## 快速開始
 
 ```bash
