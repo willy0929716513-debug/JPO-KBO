@@ -47,6 +47,55 @@ def max_drawdown(equity_curve: pd.Series) -> float:
     return float(drawdown.min())
 
 
+def check_correlation_limit(returns: dict[str, pd.Series], max_avg_correlation: float = 0.7) -> dict:
+    """Flags whether the portfolio's average pairwise correlation exceeds a
+    limit -- a portfolio of 10 "different" assets that are all 0.9
+    correlated behaves like 1 asset with 10x the position size."""
+    corr = correlation_matrix(returns)
+    if corr.shape[0] < 2:
+        return {"breached": False, "avg_correlation": 0.0}
+    off_diag = corr.to_numpy()[~np.eye(corr.shape[0], dtype=bool)]
+    avg_corr = float(np.nanmean(off_diag)) if len(off_diag) else 0.0
+    return {"breached": avg_corr > max_avg_correlation, "avg_correlation": round(avg_corr, 3)}
+
+
+def check_exposure_limits(weights: dict[str, float], group_of: dict[str, str],
+                           max_group_weight: float = 0.4) -> dict:
+    """Generic grouped exposure check, reusable for sector limits, country
+    limits, or asset-class limits -- pass whichever `group_of` mapping
+    (symbol -> group name) matches the limit you're enforcing."""
+    totals: dict[str, float] = {}
+    for symbol, weight in weights.items():
+        group = group_of.get(symbol, "other")
+        totals[group] = totals.get(group, 0.0) + weight
+    breaches = {g: round(t, 4) for g, t in totals.items() if t > max_group_weight}
+    return {"breached": bool(breaches), "breaches": breaches, "totals": {g: round(t, 4) for g, t in totals.items()}}
+
+
+def portfolio_var(weights: dict[str, float], returns: dict[str, pd.Series], confidence: float = 0.95) -> float:
+    """Historical-simulation VaR of the whole portfolio: combines each
+    asset's return series into one portfolio return series via `weights`
+    (correctly capturing diversification/correlation effects, unlike
+    summing each asset's standalone VaR), then applies `historical_var`."""
+    aligned = pd.DataFrame(returns).dropna()
+    if aligned.empty:
+        return 0.0
+    w = pd.Series({s: weights.get(s, 0.0) for s in aligned.columns})
+    portfolio_returns = aligned.mul(w, axis=1).sum(axis=1)
+    return historical_var(portfolio_returns, confidence)
+
+
+def portfolio_conditional_var(weights: dict[str, float], returns: dict[str, pd.Series],
+                               confidence: float = 0.95) -> float:
+    """Portfolio-level CVaR / Expected Shortfall, same combination approach as portfolio_var."""
+    aligned = pd.DataFrame(returns).dropna()
+    if aligned.empty:
+        return 0.0
+    w = pd.Series({s: weights.get(s, 0.0) for s in aligned.columns})
+    portfolio_returns = aligned.mul(w, axis=1).sum(axis=1)
+    return conditional_var(portfolio_returns, confidence)
+
+
 def risk_of_ruin(win_rate: float, win_loss_ratio: float, risk_per_trade: float, capital_units: int = 20) -> float:
     """Simplified risk-of-ruin approximation (classic gambler's-ruin style
     formula) -- probability of losing `capital_units` consecutive risk units."""

@@ -20,18 +20,21 @@ src/
 ├── data/          # 資料層：yfinance / ccxt / FRED / Fear&Greed provider + 本地 Parquet 快取
 ├── features/      # 技術指標、市場結構 (SMC/ICT 簡化版)、多週期趨勢、特徵管線 (registry pattern)
 ├── regime/        # 市場狀態偵測：牛市/熊市/盤整/高波動/低波動
-├── models/        # XGBoost / LightGBM / RandomForest 投票集成，含機率校準
-├── strategies/     # 趨勢跟隨 / 均值回歸 / 突破 / 動量 / ML 策略 + 依市場狀態動態加權的訊號整合器
-├── risk/          # Kelly / 固定比例 / ATR 部位、追蹤停損、VaR / CVaR、最大回撤熔斷、破產風險
-├── backtest/       # 向量化回測引擎、Walk-Forward 驗證、Monte Carlo 模擬、績效指標
-├── portfolio/      # 多資產配置 (等權重 / 反波動度風險平價 / 資產類別上限)
-├── broker/        # 執行層：預設 PaperBroker（模擬），Alpaca / 交易所實盤介面已預留但預設停用
+├── models/        # XGBoost / LightGBM / RandomForest 投票集成、Triple-Barrier / Meta-Labeling
+├── strategies/     # 趨勢跟隨 / 均值回歸 / 突破 / 動量 / ML / 統計套利(配對交易) + 訊號整合器
+├── risk/          # 部位大小、停損、VaR/CVaR、相關性與曝險限額、每日/週/月虧損上限、最大回撤熔斷
+├── backtest/       # 向量化回測引擎、Walk-Forward 驗證、Monte Carlo 模擬、20+ 績效指標
+├── portfolio/      # 多資產配置 (等權重 / 反波動度 / 真正的風險平價 Risk Parity / 資產類別上限)
+├── execution/      # 模擬執行引擎：Bracket/OCO/追蹤停損、TWAP/VWAP/POV 拆單模擬
+├── agents/        # 多代理決策系統：Technical/Macro/Risk/Portfolio Agent + Decision Engine
+├── mlops/         # 輕量 MLOps：本地模型註冊表、Champion/Challenger、PSI/KS 資料飄移偵測
+├── broker/        # 執行層：預設 PaperBroker（模擬），多交易所/IBKR 實盤介面已預留但預設停用
 ├── alerts/        # Discord / Telegram / Email 通知（未設定金鑰時自動略過，不會報錯）
 ├── pipeline/       # daily_run.py：串接以上所有模組，輸出 docs/data/*.json 給前端儀表板
 └── api/           # 選用的本地 FastAPI 服務，讀取/觸發 pipeline
 
 docs/               # GitHub Pages 靜態儀表板（純 HTML/CSS/JS + Chart.js，讀取 docs/data/*.json）
-tests/              # pytest 單元測試（技術指標、特徵管線、策略、回測、風險、broker、portfolio）
+tests/              # pytest 單元測試（89 個測試，涵蓋以上每個模組）
 scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 .github/workflows/  # 每日排程更新訊號 (update_signals.yml) + CI 測試 (ci.yml)
 ```
@@ -59,6 +62,22 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
    `docs/data/signals_latest.json`（含每檔標的訊號、市場狀態、策略回測快照）與
    `docs/data/history.json`（近 90 次執行的訊號歷史，供前端畫趨勢圖）。GitHub Actions
    (`update_signals.yml`) 每個交易日自動執行一次並提交更新，儀表板隨之自動更新。
+
+## 進階模組（2026-07 新增，全部只用免費資料）
+
+| 模組 | 內容 |
+|---|---|
+| **統計套利** `src/strategies/statistical_arbitrage.py` | Engle-Granger 共整合檢定（p<0.05 才視為共整合）+ Kalman Filter 動態避險比率，價差 z-score 超過門檻才進場，未通過共整合檢定的配對一律不交易 |
+| **Meta-Labeling** `src/models/labeling.py` | Triple-Barrier 方法（停利/停損/時間三重障礙）替換單純的「N根K棒後漲跌」標籤，`train_meta_labeling_model()` 訓練二階模型判斷主策略訊號是否值得進場 |
+| **風控引擎擴充** `src/risk/limits.py` + `src/risk/portfolio_risk.py` | 每日/週/月虧損上限（`LossLimitMonitor`）、Portfolio 層級 VaR/CVaR、相關性限額、產業/資產類別曝險限額檢查 |
+| **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權 |
+| **模擬執行引擎** `src/execution/` | `simulate_bracket_order` / `simulate_oco_order` / `simulate_trailing_stop`（判斷停利停損哪個先觸發）、`simulate_twap_execution` / `simulate_vwap_execution` / `simulate_pov_execution`（拆單模擬 + 滑價評估） |
+| **輕量 MLOps** `src/mlops/` | `ModelRegistry`（本地 joblib+json 模型版本管理）、`should_promote_challenger`（Champion/Challenger 比較後才換模型）、`population_stability_index` / `ks_test_drift`（特徵飄移偵測） |
+| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）、`PortfolioAgent`（資產類別曝險，可否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD |
+
+擴充後的績效指標（`src/backtest/metrics.py`）：CAGR、Sharpe、Sortino、Calmar、**MAR、Omega、SQN、Alpha/Beta、Information Ratio、Expectancy、Recovery Factor、Rolling Sharpe/Drawdown**。
+
+`daily_run.py` 每次執行都會：對每個標的同時跑「策略投票訊號」與「多代理決策」兩種結果（都寫進 JSON，儀表板「多代理決策」欄會顯示，滑鼠移上去可看否決原因）；並對 GC=F/SI=F、SPY/QQQ、BTC/ETH 三組配對做統計套利檢定，結果顯示在「統計套利 Pairs Trading」面板。
 
 ## 實盤交易介面（預設停用，需自行設定金鑰才會啟動）
 
@@ -106,9 +125,9 @@ cd docs && python -m http.server 8000   # 開瀏覽器打開 http://localhost:80
 
 | 類別 | 狀態 |
 |---|---|
-| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、ML 集成、回測 (含 Walk-Forward / Monte Carlo)、風險管理、Paper Trading、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試 |
-| 需要你自己申請免費/付費金鑰才會啟用：FRED 總經數據、Discord/Telegram/Email 通知、Alpaca 或交易所實盤下單 | 🔌 介面已預留，程式碼會在沒有金鑰時安全跳過，不會報錯中斷 |
-| 規格中提及但本次未實作（範疇過大或需要付費資料源，架構上都預留了擴充點）：Order Book 完整歷史 / Options Gamma Exposure / Whale Alert / 鏈上資料 / Twitter/Reddit 即時情緒 (`SentimentProvider` 有 pluggable 介面可自行接入) / 強化學習 / 多代理 AI 投票 / 異常偵測 / PostgreSQL+Redis+Kubernetes 級基礎設施 | ⏳ 未實作 |
+| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、統計套利、ML 集成、Meta-Labeling、回測 (含 Walk-Forward / Monte Carlo)、20+ 績效指標、完整風控引擎、風險平價、模擬執行引擎、輕量 MLOps、多代理決策系統、Paper Trading、多交易所/IBKR 實盤介面、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試（89 個 pytest） |
+| 需要你自己申請免費/付費金鑰才會啟用：FRED 總經數據、Discord/Telegram/Email 通知、Alpaca/交易所/IBKR 實盤下單 | 🔌 介面已預留，程式碼會在沒有金鑰時安全跳過，不會報錯中斷 |
+| 規格中提及但本次未實作（需要付費機構級資料源或專屬伺服器叢集，架構上盡量預留了擴充點）：Tick Data / Level 2 Order Book / Dark Pool / 13F / Options Greeks / IV Surface / 衛星氣象航運等另類資料、真正的強化學習交易代理、市場微結構偵測（Footprint/Spoofing/Iceberg Detection，依賴 Tick/L2 資料）、Kubernetes/Airflow/Celery/ClickHouse/TimescaleDB 級基礎設施 | ⏳ 未實作 -- 原因與替代方案見上方模組說明 |
 
 **再完整的系統也無法保證獲利。** 回測績效不代表未來表現，任何策略都可能隨市場結構改變而失效。
 正式使用前務必：(1) 用更長期、更多市場的資料重新驗證回測結果，(2) 先跑一段時間 Paper Trading

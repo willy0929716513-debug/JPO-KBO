@@ -35,14 +35,31 @@
           <thead>
             <tr>
               <th>Symbol</th><th>資產類別</th><th>價格</th><th>訊號</th><th>信心度</th>
-              <th>市場狀態</th><th>停損</th><th>停利</th><th>細節</th>
+              <th>市場狀態</th><th>停損</th><th>停利</th><th>多代理決策</th><th>細節</th>
             </tr>
           </thead>
           <tbody id="signals-body">
-            <tr><td colspan="9">尚未產生訊號，請稍候自動更新或按上方「重新整理」。</td></tr>
+            <tr><td colspan="10">尚未產生訊號，請稍候自動更新或按上方「重新整理」。</td></tr>
           </tbody>
         </table>
       </div>
+      <p class="footnote">「多代理決策」欄：技術面 Agent（策略投票）+ 總經 Agent（FRED/Fear&amp;Greed）+ 風控 Agent 三方綜合意見；風控 Agent 一旦觸發停損限額或最大回撤熔斷，會直接否決（Veto）該標的的進場，無論技術面多強烈都會被蓋成 HOLD。</p>
+    </section>
+
+    <section class="panel">
+      <h2>統計套利 Pairs Trading</h2>
+      <div class="table-wrap">
+        <table id="pairs-table">
+          <thead>
+            <tr>
+              <th>標的 A</th><th>標的 B</th><th>共整合檢定</th><th>p-value</th>
+              <th>價差 Z-score</th><th>避險比率</th><th>A 動作</th><th>B 動作</th><th>說明</th>
+            </tr>
+          </thead>
+          <tbody id="pairs-body"><tr><td colspan="9">尚無資料</td></tr></tbody>
+        </table>
+      </div>
+      <p class="footnote">每次執行都會重新做 Engle-Granger 共整合檢定（p &lt; 0.05 才視為共整合），只有目前真的通過檢定的配對才會產生交易訊號，避免把不具統計基礎的價差當套利機會。</p>
     </section>
 
     <section class="panel">
@@ -71,13 +88,17 @@
         <li><b>資料層</b>：yfinance（股票/ETF/黃金/白銀/原油/外匯）+ ccxt（加密貨幣 OHLCV / Funding Rate / Open Interest）+ FRED（總經數據，選用）+ Fear&amp;Greed Index</li>
         <li><b>特徵工程</b>：EMA/SMA/MACD/ADX/RSI/ATR/布林通道/Keltner/Donchian/Ichimoku/SuperTrend/PSAR/OBV/MFI/CCI/Stochastic/樞紐點/VWAP 等 20+ 技術指標，加上市場結構（BOS/CHoCH/FVG/Order Block/流動性掃蕩）、多週期趨勢一致性、時間特徵、滯後與滾動統計，共可擴充至數百個特徵</li>
         <li><b>市場狀態偵測</b>：自動判斷牛市 / 熊市 / 盤整 / 高波動 / 低波動並動態調整策略權重</li>
-        <li><b>策略引擎</b>：趨勢跟隨、均值回歸、突破、動量四種規則式策略 + XGBoost/LightGBM/RandomForest 投票集成模型，依市場狀態加權投票產出最終 BUY/SELL/HOLD 訊號</li>
-        <li><b>風險管理</b>：Kelly Criterion、固定比例、ATR 動態部位、追蹤停損、VaR/CVaR、最大回撤熔斷、破產風險估算</li>
-        <li><b>回測系統</b>：向量化回測、Walk-Forward 驗證、Monte Carlo 模擬，含手續費/滑價成本</li>
-        <li><b>執行層</b>：預設僅 Paper Trading 模擬撮合；Alpaca / 加密貨幣交易所實盤介面已預留，需自行設定 API 金鑰才會啟用</li>
+        <li><b>策略引擎</b>：趨勢跟隨、均值回歸、突破、動量四種規則式策略 + XGBoost/LightGBM/RandomForest 投票集成模型 + 統計套利（共整合 + Kalman Filter 動態避險比率配對交易），依市場狀態加權投票產出最終 BUY/SELL/HOLD 訊號</li>
+        <li><b>Meta-Labeling</b>：Triple-Barrier 方法（停利/停損/時間三重障礙）標記真實交易結果，訓練二階模型過濾低品質訊號，而非單純用「N 根K棒後漲跌」當標籤</li>
+        <li><b>多代理決策系統</b>：技術面 Agent、總經 Agent、風控 Agent 各自產出意見，由 Decision Engine 加權彙整成最終決策；風控 Agent 具否決權，觸發風險限額時直接蓋成 HOLD</li>
+        <li><b>風險管理</b>：Kelly Criterion、固定比例、ATR 動態部位、追蹤停損、VaR/CVaR、Portfolio 層級 VaR、相關性限額、產業/資產類別曝險限額、每日/週/月虧損上限、真正的風險平價（Risk Parity）、最大回撤熔斷、破產風險估算</li>
+        <li><b>回測系統</b>：向量化回測、Walk-Forward 驗證、Monte Carlo 模擬，含手續費/滑價成本；績效指標涵蓋 Sharpe/Sortino/Calmar/MAR/Omega/SQN/Alpha/Beta/Information Ratio/Rolling Sharpe 等</li>
+        <li><b>執行引擎（模擬）</b>：Bracket/OCO/追蹤停損模擬撮合、TWAP/VWAP/POV 拆單演算法與滑價評估</li>
+        <li><b>MLOps</b>：本地模型版本註冊表、Champion/Challenger 比較、PSI/KS 檢定資料飄移偵測</li>
+        <li><b>執行層</b>：預設僅 Paper Trading 模擬撮合；Alpaca / Binance / Bybit / OKX / Coinbase（透過 ccxt）/ Interactive Brokers 實盤介面已預留，需自行設定 API 金鑰才會啟用</li>
         <li><b>自動化</b>：GitHub Actions 每日排程重新抓資料、計算訊號、更新本頁面</li>
       </ul>
-      <p class="footnote">原始碼： <code>src/</code> 目錄，模組化拆分為 data / features / models / strategies / regime / risk / backtest / portfolio / broker / alerts / pipeline / api。</p>
+      <p class="footnote">原始碼： <code>src/</code> 目錄，模組化拆分為 data / features / models / strategies / regime / risk / backtest / portfolio / broker / alerts / pipeline / api / agents / execution / mlops。</p>
     </section>
   </main>
 
