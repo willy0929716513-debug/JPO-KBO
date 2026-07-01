@@ -28,6 +28,16 @@ function renderSummary(payload) {
     .join("");
 }
 
+function renderDecisionBadge(decision) {
+  if (!decision) return "-";
+  if (decision.vetoed) {
+    const vetoReason = (decision.opinions || []).find((o) => o.veto);
+    const title = vetoReason ? vetoReason.reasons.join("; ") : "risk veto";
+    return `<span class="badge badge-hold" title="${title.replace(/"/g, "&quot;")}">VETO -&gt; HOLD</span>`;
+  }
+  return `<span class="badge ${badgeClass(decision.action)}">${decision.action} (${(decision.confidence * 100).toFixed(0)}%)</span>`;
+}
+
 function renderSignals(payload) {
   const rows = payload.signals
     .slice()
@@ -46,11 +56,28 @@ function renderSignals(payload) {
         <td>${s.regime.state}</td>
         <td>${fmtNum(sig.stop_loss, 4)}</td>
         <td>${fmtNum(sig.take_profit, 4)}</td>
+        <td>${renderDecisionBadge(s.decision_engine)}</td>
         <td class="reasons">${reasons}</td>
       </tr>`;
     })
     .join("");
-  document.getElementById("signals-body").innerHTML = rows || `<tr><td colspan="9">尚無資料</td></tr>`;
+  document.getElementById("signals-body").innerHTML = rows || `<tr><td colspan="10">尚無資料</td></tr>`;
+}
+
+function renderPairs(payload) {
+  const pairs = payload.pairs_signals || [];
+  const rows = pairs.map((p) => `<tr>
+    <td><b>${p.symbol_a}</b></td>
+    <td><b>${p.symbol_b}</b></td>
+    <td>${p.cointegrated ? "✅ 通過" : "❌ 未通過"}</td>
+    <td>${fmtNum(p.p_value, 4)}</td>
+    <td>${fmtNum(p.zscore, 2)}</td>
+    <td>${fmtNum(p.hedge_ratio, 4)}</td>
+    <td><span class="badge ${badgeClass(p.action_a)}">${p.action_a}</span></td>
+    <td><span class="badge ${badgeClass(p.action_b)}">${p.action_b}</span></td>
+    <td class="reasons">${(p.reasons || []).join(" · ")}</td>
+  </tr>`).join("");
+  document.getElementById("pairs-body").innerHTML = rows || `<tr><td colspan="9">尚無資料</td></tr>`;
 }
 
 function renderBacktest(payload) {
@@ -115,6 +142,7 @@ async function loadDashboard() {
 
     renderSummary(payload);
     renderSignals(payload);
+    renderPairs(payload);
     renderBacktest(payload);
   } catch (err) {
     document.getElementById("generated-at").textContent = "尚未有資料，等待第一次自動更新";

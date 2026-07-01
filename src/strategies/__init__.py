@@ -4,9 +4,11 @@ from .combiner import CombinedSignal, StrategyCombiner
 from .mean_reversion import MeanReversionStrategy
 from .ml_strategy import MLStrategy
 from .momentum import MomentumStrategy
+from .statistical_arbitrage import KalmanHedgeRatio, PairSignal, PairsTradingStrategy, cointegration_test
 from .trend_following import TrendFollowingStrategy
 
 __all__ = [
     "Action", "Signal", "Strategy", "BreakoutStrategy", "CombinedSignal", "StrategyCombiner",
     "MeanReversionStrategy", "MLStrategy", "MomentumStrategy", "TrendFollowingStrategy",
+    "KalmanHedgeRatio", "PairSignal", "PairsTradingStrategy", "cointegration_test",
 ]

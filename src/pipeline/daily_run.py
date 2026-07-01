@@ -1,8 +1,10 @@
 """The single orchestration entry point that ties every module together:
 
-  fetch data -> build features -> detect regime -> run strategies ->
-  combine into a final signal -> run a quick backtest snapshot ->
-  export everything as JSON for the GitHub Pages dashboard.
+  fetch data -> build features -> detect regime -> run strategies -> combine
+  into a final signal -> run a quick backtest snapshot -> run the multi-agent
+  decision engine (technical + macro + risk) -> analyze a few correlated
+  pairs for statistical arbitrage -> export everything as JSON for the
+  GitHub Pages dashboard.
 
 Run it with `python scripts/run_pipeline.py`. It's also what the daily
 GitHub Actions workflow calls. Every network call is wrapped so a single
@@ -17,15 +19,19 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+from src.agents import AgentContext, DecisionEngine, MacroAgent, RiskAgent, TechnicalAgent
 from src.backtest.engine import BacktestEngine
 from src.config import DOCS_DATA_DIR, settings
 from src.data.providers.ccxt_provider import CCXTProvider
+from src.data.providers.macro_provider import MacroProvider
 from src.data.providers.sentiment_provider import SentimentProvider
 from src.data.providers.yfinance_provider import YFinanceProvider
 from src.features.feature_pipeline import FeaturePipeline
 from src.regime.detector import RegimeDetector
+from src.risk.limits import LossLimitMonitor
+from src.risk.portfolio_risk import DrawdownCircuitBreaker, max_drawdown
 from src.strategies import (
-    BreakoutStrategy, MeanReversionStrategy, MomentumStrategy,
+    BreakoutStrategy, MeanReversionStrategy, MomentumStrategy, PairsTradingStrategy,
     StrategyCombiner, TrendFollowingStrategy,
 )
 
@@ -44,6 +50,12 @@ WATCHLIST = {
     "crypto": ["BTC/USDT", "ETH/USDT"],
 }
 
+# A few historically-related pairs to screen for statistical arbitrage
+# opportunities. Cointegration is tested fresh every run -- a pair only
+# generates a trade signal when it currently passes the test, not because
+# it's hardcoded here.
+PAIR_WATCHLIST = [("GC=F", "SI=F", "metal"), ("SPY", "QQQ", "etf"), ("BTC/USDT", "ETH/USDT", "crypto")]
+
 
 def _asset_class_of(symbol: str) -> str:
     for cls, syms in WATCHLIST.items():
@@ -58,8 +70,8 @@ def _load_ohlcv(symbol: str, asset_class: str, interval: str = "1d") -> pd.DataF
     return YFinanceProvider().get_ohlcv(symbol, interval)
 
 
-def _analyze_symbol(symbol: str, asset_class: str) -> dict | None:
-    df = _load_ohlcv(symbol, asset_class)
+def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snapshot: dict,
+                     sentiment_snapshot: dict) -> dict | None:
     if df.empty or len(df) < 80:
         logger.warning("Skipping %s: insufficient data (%d rows)", symbol, len(df))
         return None
@@ -73,9 +85,27 @@ def _analyze_symbol(symbol: str, asset_class: str) -> dict | None:
 
     engine = BacktestEngine(commission_bps=settings.default_commission_bps, slippage_bps=settings.default_slippage_bps,
                              risk_free_rate=settings.risk_free_rate)
-    backtest_snapshot = {
-        strat.name: engine.run(symbol, strat, features).metrics for strat in strategies
+    backtest_results = {strat.name: engine.run(symbol, strat, features) for strat in strategies}
+    backtest_snapshot = {name: result.metrics for name, result in backtest_results.items()}
+
+    # Risk status is checked against this symbol's own trend-following equity
+    # curve as a stand-in for a live portfolio equity curve (which doesn't
+    # exist yet -- no persistent broker state), so it reflects "would this
+    # strategy on this symbol currently be within its risk limits."
+    trend_equity = backtest_results["trend_following"].equity_curve
+    loss_status = LossLimitMonitor().check(trend_equity)
+    drawdown_breached = DrawdownCircuitBreaker().update(trend_equity)
+    risk_status = {
+        "current_drawdown_pct": round(max_drawdown(trend_equity) * 100, 2),
+        "drawdown_circuit_breaker_tripped": drawdown_breached,
+        **loss_status.to_dict(),
     }
+
+    decision_engine = DecisionEngine([TechnicalAgent(combiner, RegimeDetector()), MacroAgent(),
+                                       RiskAgent(loss_limit_monitor=LossLimitMonitor())])
+    context = AgentContext(symbol=symbol, features=features, macro_snapshot=macro_snapshot,
+                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity)
+    decision = decision_engine.decide(context)
 
     return {
         "symbol": symbol,
@@ -89,33 +119,61 @@ def _analyze_symbol(symbol: str, asset_class: str) -> dict | None:
             "direction": regime_state.direction,
         },
         "signal": combined.to_dict(),
+        "decision_engine": decision.to_dict(),
+        "risk_status": risk_status,
         "backtest": backtest_snapshot,
         "feature_count": FeaturePipeline.feature_count(features),
     }
 
 
+def _analyze_pairs(price_cache: dict[str, pd.Series]) -> list[dict]:
+    results = []
+    strategy = PairsTradingStrategy()
+    for symbol_a, symbol_b, asset_class in PAIR_WATCHLIST:
+        close_a, close_b = price_cache.get(symbol_a), price_cache.get(symbol_b)
+        if close_a is None or close_b is None or len(close_a) < 80 or len(close_b) < 80:
+            continue
+        try:
+            signal = strategy.analyze(symbol_a, close_a, symbol_b, close_b)
+            results.append({"asset_class": asset_class, **signal.to_dict()})
+        except Exception as exc:
+            logger.warning("Pairs analysis failed for %s/%s: %s", symbol_a, symbol_b, exc)
+    return results
+
+
 def run_daily_pipeline() -> dict:
     results = []
     errors = []
+    price_cache: dict[str, pd.Series] = {}
+
+    sentiment = SentimentProvider().get_crypto_fear_greed()
+    sentiment_snapshot = {"crypto_fear_greed": sentiment}
+    macro_snapshot = MacroProvider().get_dxy_and_yields_snapshot()  # returns all-None values if FRED_API_KEY unset
+
     for asset_class, symbols in WATCHLIST.items():
         for symbol in symbols:
             try:
-                res = _analyze_symbol(symbol, asset_class)
+                df = _load_ohlcv(symbol, asset_class)
+                if not df.empty:
+                    price_cache[symbol] = df["close"]
+                res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot)
                 if res:
                     results.append(res)
             except Exception as exc:
                 logger.error("Failed analyzing %s: %s", symbol, exc)
                 errors.append({"symbol": symbol, "error": str(exc), "trace": traceback.format_exc(limit=3)})
 
-    sentiment = SentimentProvider().get_crypto_fear_greed()
+    pairs_signals = _analyze_pairs(price_cache)
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "watchlist_size": sum(len(v) for v in WATCHLIST.values()),
         "successful": len(results),
         "errors": errors,
-        "market_sentiment": {"crypto_fear_greed": sentiment},
+        "market_sentiment": sentiment_snapshot,
+        "macro_snapshot": macro_snapshot,
         "signals": results,
+        "pairs_signals": pairs_signals,
     }
 
     DOCS_DATA_DIR.mkdir(parents=True, exist_ok=True)

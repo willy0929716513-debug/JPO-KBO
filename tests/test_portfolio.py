@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from src.portfolio.allocator import PortfolioAllocator
@@ -26,3 +27,33 @@ def test_asset_class_caps():
     capped = allocator.apply_asset_class_caps(weights, asset_class_of)
     crypto_total = capped["BTC/USDT"] + capped["ETH/USDT"]
     assert crypto_total <= 0.41
+
+
+def test_risk_parity_sums_to_one():
+    allocator = PortfolioAllocator(max_position_weight=1.0)
+    rng = np.random.default_rng(5)
+    returns = {
+        "A": pd.Series(rng.normal(0, 0.01, 200)),
+        "B": pd.Series(rng.normal(0, 0.02, 200)),
+        "C": pd.Series(rng.normal(0, 0.03, 200)),
+    }
+    weights = allocator.risk_parity(returns)
+    assert abs(sum(weights.values()) - 1.0) < 1e-3
+    assert all(w >= 0 for w in weights.values())
+
+
+def test_risk_parity_downweights_higher_volatility_asset():
+    allocator = PortfolioAllocator(max_position_weight=1.0)
+    rng = np.random.default_rng(5)
+    returns = {
+        "low_vol": pd.Series(rng.normal(0, 0.005, 300)),
+        "high_vol": pd.Series(rng.normal(0, 0.05, 300)),
+    }
+    weights = allocator.risk_parity(returns)
+    assert weights["low_vol"] > weights["high_vol"]
+
+
+def test_risk_parity_single_asset():
+    allocator = PortfolioAllocator()
+    weights = allocator.risk_parity({"A": pd.Series([0.01, -0.01, 0.02])})
+    assert weights == {"A": 1.0}
