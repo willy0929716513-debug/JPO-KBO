@@ -2,7 +2,8 @@ name: Update Trading Signals
 
 on:
   schedule:
-    - cron: "30 21 * * 1-5"   # 21:30 UTC = after US market close, Mon-Fri
+    - cron: "*/15 13-20 * * 1-5"   # every 15 min during ~US market hours (13:00-20:59 UTC), Mon-Fri
+    - cron: "30 21 * * 1-5"        # 21:30 UTC = final snapshot after US market close, Mon-Fri
   workflow_dispatch: {}
 
 permissions:

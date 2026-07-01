@@ -1,5 +1,7 @@
 const DATA_URL = "data/signals_latest.json";
 const HISTORY_URL = "data/history.json";
+const DASHBOARD_REFRESH_MS = 60_000; // pipeline data only changes when Actions runs, but this keeps the page current without a manual click
+const LIVE_CRYPTO_SYMBOLS = ["btcusdt", "ethusdt"];
 
 function badgeClass(action) {
   if (action === "BUY") return "badge-buy";
@@ -157,5 +159,55 @@ async function loadDashboard() {
   }
 }
 
+// Genuinely real-time crypto prices via Binance's public WebSocket ticker
+// stream -- free, no API key, and works directly from a static page since
+// WebSocket isn't subject to the CORS restrictions that a plain fetch to
+// most market-data REST APIs would hit. Stocks/gold/forex have no free
+// real-time equivalent (see README), so those stay on the periodic
+// pipeline refresh below instead of pretending to be live.
+function startLiveCryptoTicker() {
+  const container = document.getElementById("live-crypto");
+  if (!container) return;
+
+  const streams = LIVE_CRYPTO_SYMBOLS.map((s) => `${s}@ticker`).join("/");
+  const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+  const lastPrices = {};
+
+  const render = () => {
+    container.innerHTML = LIVE_CRYPTO_SYMBOLS.map((s) => {
+      const data = lastPrices[s];
+      if (!data) return `<div class="live-price-item"><span class="live-symbol">${s.toUpperCase()}</span><span class="live-value">連線中...</span></div>`;
+      const changeClass = data.changePct >= 0 ? "live-up" : "live-down";
+      const arrow = data.changePct >= 0 ? "▲" : "▼";
+      return `<div class="live-price-item">
+        <span class="live-symbol">${s.replace("usdt", "").toUpperCase()}/USDT</span>
+        <span class="live-value">${fmtNum(data.price, 2)}</span>
+        <span class="live-change ${changeClass}">${arrow} ${fmtNum(Math.abs(data.changePct), 2)}%</span>
+      </div>`;
+    }).join("");
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      const ticker = msg.data;
+      if (!ticker || !ticker.s) return;
+      const symbol = ticker.s.toLowerCase();
+      lastPrices[symbol] = { price: parseFloat(ticker.c), changePct: parseFloat(ticker.P) };
+      render();
+    } catch (err) {
+      console.warn("live ticker parse error", err);
+    }
+  };
+
+  ws.onerror = () => {
+    container.innerHTML = `<div class="live-price-item">即時報價連線失敗（可能是網路封鎖了 WebSocket），股票/黃金等其他標的價格不受影響</div>`;
+  };
+
+  render();
+}
+
 document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
 loadDashboard();
+startLiveCryptoTicker();
+setInterval(loadDashboard, DASHBOARD_REFRESH_MS);

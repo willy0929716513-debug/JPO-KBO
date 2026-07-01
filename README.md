@@ -93,6 +93,16 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
 
 用法：`from src.broker import get_broker; broker = get_broker("live", asset_class="crypto")` 會依資產類別自動選對應的介面；沒對應金鑰時會拋出清楚的錯誤訊息而不是靜默失敗。目前 `daily_run.py` pipeline 本身**不會呼叫這些介面下單**，只負責產生訊號——要接自動下單，需要你自行在 pipeline 或另一支腳本中，讀取 `CombinedSignal` 後呼叫 `broker.submit_order(...)`，並強烈建議先在 Paper Trading / 測試網跑過一段時間再考慮接真實資金。
 
+## 價格更新頻率（誠實說明「即時」能做到什麼程度）
+
+- **加密貨幣（BTC/USDT、ETH/USDT）**：儀表板頂部「即時價格」面板透過瀏覽器直接連線 Binance 的公開
+  WebSocket（`wss://stream.binance.com`），**真正逐筆即時更新**，不需要任何金鑰，也不經過 GitHub Actions。
+- **股票 / 黃金 / 白銀 / 原油 / 外匯**：免費資料源（Yahoo Finance）沒有提供真正的即時逐筆報價（本身就有
+  15-20 分鐘延遲），且瀏覽器無法直接跨網域請求 Yahoo 的 API（會被 CORS 政策擋掉）。這些標的的價格改為
+  透過 `.github/workflows/update_signals.yml`：**美股交易時段內（13:00-20:59 UTC）每 15 分鐘自動更新一次**，
+  收盤後再跑一次最終快照，儀表板本身也會每 60 秒自動重新讀取一次最新資料（不用手動按重新整理）。
+  要做到真正逐秒即時，需要付費資料源（見上方「未實作」表格）。
+
 ## 快速開始
 
 ```bash
