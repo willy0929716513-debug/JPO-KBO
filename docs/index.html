@@ -1,564 +1,90 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0f172a">
-<title>NPB/KBO Protector ⚾ — 日職・韓職預測系統</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
-body{
-  background:#0f172a;color:#e2e8f0;
-  font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;
-  padding-bottom:env(safe-area-inset-bottom,0px);
-}
-header{padding-top:env(safe-area-inset-top,0px)}
-.card{background:#1e293b;border:1px solid #334155;border-radius:.875rem}
-.tier-1{border-left:4px solid #38bdf8}
-.tier-2{border-left:4px solid #f97316}
-.tier-3{border-left:4px solid #a78bfa}
-.badge-ml{background:#064e3b;color:#6ee7b7;padding:3px 8px;border-radius:5px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
-.badge-rl{background:#1e3a5f;color:#60a5fa;padding:3px 8px;border-radius:5px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
-.badge-tot{background:#3b0764;color:#c4b5fd;padding:3px 8px;border-radius:5px;font-size:.68rem;font-weight:700;letter-spacing:.02em}
-.detail-section{max-height:0;overflow:hidden;transition:max-height .35s ease}
-.detail-section.open{max-height:1600px}
-.tab-active{background:#1d4ed8!important;color:#fff!important}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{animation:spin 1s linear infinite;display:inline-block}
-.prob-bar{display:flex;height:22px;border-radius:11px;overflow:hidden}
-/* hide scrollbar but keep scrollable */
-.tab-scroll{-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.tab-scroll::-webkit-scrollbar{display:none}
-/* stat chip */
-.chip{background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:4px 10px;font-size:.72rem;color:#94a3b8;text-align:center;flex:1;min-width:0}
-.chip b{color:#e2e8f0;display:block;font-size:.82rem}
-/* drawer slides up from bottom on mobile */
-@media(max-width:640px){
-  #hist-drawer{bottom:0;top:auto;left:0;right:0;max-width:100%;border-radius:1rem 1rem 0 0;border-left:none;border-top:1px solid #334155;max-height:80vh}
-}
-</style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quant Trading Dashboard｜量化交易訊號儀表板</title>
+<link rel="stylesheet" href="assets/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
-<body class="min-h-screen">
-
-<!-- ─── Header ───────────────────────────────────────────── -->
-<header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-700/50">
-  <div class="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="flex-1 min-w-0">
-      <h1 class="text-base font-bold text-white tracking-tight">⚾ NPB/KBO Protector</h1>
-      <div class="text-xs text-slate-500 truncate" id="gen-time">載入中…</div>
-    </div>
-    <div class="flex gap-2 items-center shrink-0">
-      <button onclick="toggleHistory()" class="h-9 px-3 rounded-xl bg-slate-700 active:bg-slate-600 text-slate-300 text-xs font-medium">📋 歷史</button>
-      <button onclick="openRunModal()" class="h-9 px-3 rounded-xl bg-blue-600 active:bg-blue-700 text-white text-xs font-bold">▶ 執行</button>
-      <button onclick="loadData()" class="h-9 w-9 rounded-xl bg-slate-700 active:bg-slate-600 text-slate-300 flex items-center justify-center" title="重新整理"><span id="ri" class="text-base">↻</span></button>
-    </div>
-  </div>
-</header>
-
-<!-- ─── Main content ──────────────────────────────────────── -->
-<div class="max-w-2xl mx-auto px-3 py-3 space-y-3">
-
-  <!-- Stats panel -->
-  <div class="card p-4" id="stats-panel" style="display:none">
-    <div class="grid grid-cols-3 gap-2 mb-3 text-center">
-      <div class="bg-slate-800/60 rounded-xl p-3">
-        <div class="text-2xl font-bold text-emerald-400" id="s-wr">—</div>
-        <div class="text-xs text-slate-500 mt-0.5">勝率</div>
-      </div>
-      <div class="bg-slate-800/60 rounded-xl p-3">
-        <div class="text-2xl font-bold" id="s-roi">—</div>
-        <div class="text-xs text-slate-500 mt-0.5">ROI</div>
-      </div>
-      <div class="bg-slate-800/60 rounded-xl p-3">
-        <div class="text-xl font-bold text-slate-200" id="s-rec">—</div>
-        <div class="text-xs text-slate-500 mt-0.5">勝/總</div>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>📈 Quant Trading Signal Dashboard</h1>
+      <p class="subtitle">股票 / ETF / 黃金 / 原油 / 外匯 / 加密貨幣 — 自動化技術分析與策略訊號（僅供研究與紙上交易參考，不構成投資建議）</p>
+      <div class="meta-row">
+        <span id="generated-at" class="pill">載入中...</span>
+        <span id="fear-greed" class="pill">Fear &amp; Greed: --</span>
+        <button id="refresh-btn" class="pill pill-btn">重新整理</button>
       </div>
     </div>
-    <div id="form-strip" class="flex flex-wrap gap-1 pt-2 border-t border-slate-700/40 min-h-4"></div>
-  </div>
+  </header>
 
-  <!-- Filter tabs -->
-  <div class="tab-scroll flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
-    <button class="tab-btn tab-active whitespace-nowrap h-9 px-4 rounded-xl bg-slate-700 text-slate-300 text-sm font-medium" data-f="ALL" onclick="setFilter('ALL')">全部</button>
-    <button class="tab-btn whitespace-nowrap h-9 px-4 rounded-xl bg-slate-700 text-slate-300 text-sm" data-f="ML" onclick="setFilter('ML')">🎯 ML 獨贏</button>
-    <button class="tab-btn whitespace-nowrap h-9 px-4 rounded-xl bg-slate-700 text-slate-300 text-sm" data-f="RL" onclick="setFilter('RL')">📐 RL 讓分</button>
-    <button class="tab-btn whitespace-nowrap h-9 px-4 rounded-xl bg-slate-700 text-slate-300 text-sm" data-f="TOT" onclick="setFilter('TOT')">📊 大小分</button>
-    <button class="tab-btn whitespace-nowrap h-9 px-4 rounded-xl bg-slate-700 text-slate-300 text-sm" data-f="LIVE" onclick="setFilter('LIVE')">🔴 場中</button>
-  </div>
+  <main class="container">
+    <section class="disclaimer">
+      ⚠️ 本系統為量化研究框架的展示，訊號由規則式策略與機率模型自動產生，<b>目前僅連接紙上交易（Paper Trading），不會下真實訂單</b>。
+      任何策略都可能失效，市場有虧損真實本金的風險，請務必自行判斷並做好風險管理。
+    </section>
 
-  <!-- Picks -->
-  <div id="picks-container"><div class="card p-10 text-center text-slate-500">載入中…</div></div>
+    <section class="cards" id="summary-cards"></section>
 
-  <!-- Live section -->
-  <div id="live-section" style="display:none">
-    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">🔴 場中比賽</h2>
-    <div id="live-container" class="space-y-2"></div>
-  </div>
-
-</div>
-
-<!-- ─── History drawer ─────────────────────────────────────── -->
-<div id="hist-overlay" class="fixed inset-0 bg-black/60 z-30 hidden" onclick="toggleHistory()">
-  <div id="hist-drawer" class="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-slate-900 border-l border-slate-700 overflow-y-auto p-4" onclick="event.stopPropagation()">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="font-bold text-white text-base">📋 歷史紀錄</h2>
-      <button onclick="toggleHistory()" class="h-9 w-9 rounded-xl bg-slate-700 active:bg-slate-600 text-slate-300 text-lg flex items-center justify-center">✕</button>
-    </div>
-    <div id="hist-list" class="space-y-2"></div>
-  </div>
-</div>
-
-<!-- ─── Run modal ──────────────────────────────────────────── -->
-<div id="run-overlay" class="fixed inset-0 bg-black/70 z-30 hidden items-end sm:items-center justify-center">
-  <div class="card w-full max-w-md mx-0 sm:mx-4 p-5 rounded-b-none sm:rounded-xl" style="padding-bottom:max(20px,env(safe-area-inset-bottom,20px))">
-    <h3 class="font-bold text-white text-base mb-1">▶ 立即執行預測</h3>
-    <p class="text-xs text-slate-400 mb-4 leading-relaxed">需要 GitHub PAT（<b class="text-slate-200">workflow: write</b> 權限），僅存在本機瀏覽器。</p>
-    <input id="pat-inp" type="password" placeholder="ghp_xxxx…" autocomplete="current-password"
-      class="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:border-blue-500 mb-3">
-    <div id="run-st" class="text-sm text-center mb-3 min-h-5"></div>
-    <div class="flex gap-2">
-      <button onclick="closeRunModal()" class="flex-1 h-11 rounded-xl bg-slate-700 active:bg-slate-600 text-sm text-slate-200 font-medium">取消</button>
-      <button onclick="doRun()" id="run-btn" class="flex-1 h-11 rounded-xl bg-blue-600 active:bg-blue-700 text-sm text-white font-bold">確認執行</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const JSON_URL = "./picks_latest.json";
-const REPO     = "willy0929716513-debug/JPO-KBO";
-const WORKFLOW = "cpbl_bot.yml";
-
-let allPicks=[], allPredictions=[], allHistory=[], liveGames=[], currentFilter="ALL", cardIdx=0, gameDate="";
-const TEAM_COLOR={AEL:"#3b82f6",CT:"#f59e0b",FG:"#ef4444",WL:"#8b5cf6",TSG:"#14b8a6",WC:"#e31937"};
-const FACTOR_LABEL={starter:"先發投手",lineup:"打線",bullpen:"牛棚",odds:"賠率",
-  home_away:"主客場",recent_form:"近況",h2h:"H2H",injuries:"傷兵",weather:"天氣",defense:"守備"};
-
-// ── Data loading ──────────────────────────────────────────
-async function loadData() {
-  const ri=document.getElementById("ri");
-  ri.classList.add("spin");
-  try {
-    const res=await fetch(JSON_URL+"?t="+Date.now());
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    document.getElementById("gen-time").textContent="更新於 "+data.generated_at;
-    allPicks=data.picks||[]; allPredictions=data.predictions||[]; allHistory=data.recent_history||[]; liveGames=data.live_games||[];
-    gameDate=data.game_date||"";
-    renderStats(); renderPicks(); renderLive(); updateTabCounts();
-  } catch(e) {
-    document.getElementById("picks-container").innerHTML=
-      `<div class="card p-10 text-center text-rose-400 text-sm">載入失敗：${e.message}<br><small class="text-slate-500 mt-1 block">請先執行預測機器人</small></div>`;
-  }
-  ri.classList.remove("spin");
-}
-
-// ── Stats panel ───────────────────────────────────────────
-function renderStats() {
-  const panel=document.getElementById("stats-panel");
-  if(!allHistory.length){panel.style.display="none";return;}
-  panel.style.display="";
-  const settled=allHistory.filter(h=>h.result!==null);
-  const wins=settled.filter(h=>h.result==="W").length;
-  const stake=settled.reduce((s,h)=>s+(h.stake||0),0);
-  const pnl=settled.reduce((s,h)=>{
-    if(h.result==="W") return s+(h.stake||0)*((h.bp||1.8)-1);
-    if(h.result==="L") return s-(h.stake||0);
-    return s;
-  },0);
-  const wr=settled.length?(wins/settled.length*100).toFixed(1)+"%":"—";
-  const roi=stake?((pnl/stake)*100).toFixed(1):null;
-  document.getElementById("s-wr").textContent=wr;
-  document.getElementById("s-rec").textContent=`${wins}/${settled.length}`;
-  const re=document.getElementById("s-roi");
-  re.textContent=roi!==null?(roi>=0?"+":"")+roi+"%":"—";
-  re.className="text-2xl font-bold "+(roi===null?"text-slate-400":parseFloat(roi)>=0?"text-emerald-400":"text-rose-400");
-  document.getElementById("form-strip").innerHTML=settled.slice(-20).map(h=>{
-    const [bg,fg,lbl]=h.result==="W"?["#065f46","#6ee7b7","W"]:["#7f1d1d","#fca5a5","L"];
-    return `<span style="width:16px;height:16px;border-radius:4px;background:${bg};color:${fg};display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">${lbl}</span>`;
-  }).join("");
-}
-
-// ── Filters ───────────────────────────────────────────────
-function setFilter(f) {
-  currentFilter=f;
-  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.toggle("tab-active",b.dataset.f===f));
-  if(f==="LIVE"){
-    document.getElementById("picks-container").innerHTML="";
-    document.getElementById("live-section").style.display="";
-  } else {
-    document.getElementById("live-section").style.display=(liveGames.length&&f==="ALL")?"":"none";
-    renderPicks();
-  }
-}
-
-function updateTabCounts() {
-  const cnt={ML:0,RL:0,TOT:0};
-  allPicks.forEach(p=>{if(cnt[p.btype]!==undefined)cnt[p.btype]++;});
-  const total = allPredictions.length || allPicks.length;
-  document.querySelectorAll(".tab-btn").forEach(b=>{
-    const f=b.dataset.f;
-    if(f==="ALL"){b.textContent=`全部 (${total})`;return;}
-    if(f==="LIVE"){b.textContent=`🔴 場中 (${liveGames.length})`;return;}
-    const lbl={ML:"🎯 ML 獨贏",RL:"📐 RL 讓分",TOT:"📊 大小分"}[f]||f;
-    b.textContent=`${lbl} (${cnt[f]||0})`;
-  });
-}
-
-// ── Pitcher formatter ─────────────────────────────────────
-function fmtSP(pitcher) {
-  if(!pitcher||!pitcher.name) return "TBD";
-  const tag = pitcher.foreign ? "🌏 " : "";
-  const parts = [];
-  if(pitcher.era!=null) parts.push(`ERA ${pitcher.era}`);
-  if(pitcher.recent_3_era!=null) parts.push(`近3場: ${pitcher.recent_3_era}`);
-  if(pitcher.k9!=null) parts.push(`K/9: ${pitcher.k9}`);
-  return `${tag}<b class="text-slate-200">${pitcher.name}</b><span class="text-slate-500 ml-1">${parts.join(' · ')}</span>`;
-}
-
-// ── Pick card ─────────────────────────────────────────────
-function renderCard(p) {
-  const uid="d"+(cardIdx++);
-  const aw=Math.round((p.away_win_prob||0)*100), hw=100-aw;
-  const conf=Math.round((p.conf||0)*100);
-  const edgeStr=((p.edge||0)*100).toFixed(1);
-  const ac=TEAM_COLOR[p.away]||"#6b7280", hc=TEAM_COLOR[p.home]||"#6b7280";
-  const asp=p.away_sp||{}, hsp=p.home_sp||{};
-  const tc={1:"tier-1",2:"tier-2",3:"tier-3"}[p.tier]||"tier-3";
-  const tl={1:"💎 Diamond",2:"🔥 Fire",3:"⭐ Star"}[p.tier]||"⭐ Star";
-  const bm={ML:"badge-ml",RL:"badge-rl",TOT:"badge-tot"}[p.btype]||"badge-ml";
-  const bl={ML:"ML 獨贏",RL:"RL 讓分",TOT:"大小分"}[p.btype]||p.btype;
-  const cg=conf>=75?"from-emerald-600 to-emerald-400":conf>=65?"from-amber-600 to-amber-400":"from-rose-600 to-rose-400";
-
-  // Date + venue line
-  const gd=(p.game_date||gameDate||"").replace(/^\d{4}-/,"");  // shorten to MM-DD
-  const gt=p.game_time||p.time||"";
-  const dtStr=[gd,gt].filter(Boolean).join(" ");
-  const venueLine=dtStr?`<div class="text-xs text-slate-500 mt-1">🗓️ ${dtStr}${p.venue?" · 🏟️ "+p.venue:""}</div>`:"";
-
-  // Pitcher section (two rows)
-  const spLine=(asp.name||hsp.name)?`
-  <div class="mt-2 rounded-xl overflow-hidden border border-slate-700/50">
-    <div class="bg-slate-800/40 px-3 py-1 text-xs text-slate-500 font-medium">⚾ 先發投手</div>
-    <div class="bg-slate-800/20 px-3 py-2 space-y-1.5">
-      <div class="flex items-baseline gap-2 text-xs">
-        <span class="shrink-0 text-slate-600 font-medium w-4">客</span>
-        <span class="leading-relaxed">${fmtSP(asp)}</span>
+    <section class="panel">
+      <h2>即時訊號 Signals</h2>
+      <div class="table-wrap">
+        <table id="signals-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>資產類別</th><th>價格</th><th>訊號</th><th>信心度</th>
+              <th>市場狀態</th><th>停損</th><th>停利</th><th>細節</th>
+            </tr>
+          </thead>
+          <tbody id="signals-body">
+            <tr><td colspan="9">尚未產生訊號，請稍候自動更新或按上方「重新整理」。</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="flex items-baseline gap-2 text-xs">
-        <span class="shrink-0 text-slate-600 font-medium w-4">主</span>
-        <span class="leading-relaxed">${fmtSP(hsp)}</span>
+    </section>
+
+    <section class="panel">
+      <h2>策略回測快照 Strategy Backtest Snapshot</h2>
+      <div class="table-wrap">
+        <table id="backtest-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>策略</th><th>總報酬</th><th>年化報酬 CAGR</th><th>Sharpe</th>
+              <th>Sortino</th><th>最大回撤 MDD</th><th>勝率</th><th>交易次數</th>
+            </tr>
+          </thead>
+          <tbody id="backtest-body"><tr><td colspan="9">-</td></tr></tbody>
+        </table>
       </div>
-    </div>
-  </div>` : "";
+    </section>
 
-  // Bet recommendation
-  const betBox=`
-  <div class="mt-3 bg-slate-800/70 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-    <div class="min-w-0">
-      <div class="font-bold text-white text-base leading-tight">${p.bet_label}</div>
-      <div class="text-slate-400 text-sm mt-0.5">賠率 <b class="text-slate-200">${p.bp}</b></div>
-    </div>
-    <button onclick="copyText('${p.bet_label} @ ${p.bp}')" class="shrink-0 h-9 px-3 rounded-lg bg-slate-700 active:bg-slate-600 text-slate-400 text-xs">📋 複製</button>
-  </div>`;
+    <section class="panel">
+      <h2>歷史訊號分佈 Signal History</h2>
+      <canvas id="history-chart" height="90"></canvas>
+    </section>
 
-  // Key stats row
-  const statsRow=`
-  <div class="mt-3 grid grid-cols-3 gap-2 text-center">
-    <div class="bg-slate-800/60 rounded-xl py-2.5">
-      <div class="text-lg font-bold text-emerald-400">+${edgeStr}%</div>
-      <div class="text-xs text-slate-500 mt-0.5">邊際優勢</div>
-    </div>
-    <div class="bg-slate-800/60 rounded-xl py-2.5">
-      <div class="text-lg font-bold text-amber-400">${conf}%</div>
-      <div class="text-xs text-slate-500 mt-0.5">信心指數</div>
-    </div>
-    <div class="bg-slate-800/60 rounded-xl py-2.5">
-      <div class="text-lg font-bold text-blue-400">${hw}%</div>
-      <div class="text-xs text-slate-500 mt-0.5">主隊勝率</div>
-    </div>
-  </div>`;
+    <section class="panel">
+      <h2>系統架構 Architecture</h2>
+      <ul class="arch-list">
+        <li><b>資料層</b>：yfinance（股票/ETF/黃金/白銀/原油/外匯）+ ccxt（加密貨幣 OHLCV / Funding Rate / Open Interest）+ FRED（總經數據，選用）+ Fear&amp;Greed Index</li>
+        <li><b>特徵工程</b>：EMA/SMA/MACD/ADX/RSI/ATR/布林通道/Keltner/Donchian/Ichimoku/SuperTrend/PSAR/OBV/MFI/CCI/Stochastic/樞紐點/VWAP 等 20+ 技術指標，加上市場結構（BOS/CHoCH/FVG/Order Block/流動性掃蕩）、多週期趨勢一致性、時間特徵、滯後與滾動統計，共可擴充至數百個特徵</li>
+        <li><b>市場狀態偵測</b>：自動判斷牛市 / 熊市 / 盤整 / 高波動 / 低波動並動態調整策略權重</li>
+        <li><b>策略引擎</b>：趨勢跟隨、均值回歸、突破、動量四種規則式策略 + XGBoost/LightGBM/RandomForest 投票集成模型，依市場狀態加權投票產出最終 BUY/SELL/HOLD 訊號</li>
+        <li><b>風險管理</b>：Kelly Criterion、固定比例、ATR 動態部位、追蹤停損、VaR/CVaR、最大回撤熔斷、破產風險估算</li>
+        <li><b>回測系統</b>：向量化回測、Walk-Forward 驗證、Monte Carlo 模擬，含手續費/滑價成本</li>
+        <li><b>執行層</b>：預設僅 Paper Trading 模擬撮合；Alpaca / 加密貨幣交易所實盤介面已預留，需自行設定 API 金鑰才會啟用</li>
+        <li><b>自動化</b>：GitHub Actions 每日排程重新抓資料、計算訊號、更新本頁面</li>
+      </ul>
+      <p class="footnote">原始碼： <code>src/</code> 目錄，模組化拆分為 data / features / models / strategies / regime / risk / backtest / portfolio / broker / alerts / pipeline / api。</p>
+    </section>
+  </main>
 
-  // Confidence bar
-  const confBar=`
-  <div class="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-    <div class="h-full rounded-full bg-gradient-to-r ${cg}" style="width:${conf}%"></div>
-  </div>`;
+  <footer class="footer">
+    <p>Professional Quant Trading System · 僅供教育與研究用途 · 過去績效不代表未來表現 · 不保證獲利</p>
+  </footer>
 
-  // Win probability bar
-  const probBar=`
-  <div class="mt-2 prob-bar">
-    <div style="width:${aw}%;background:${ac};min-width:${aw>5?0:24}px" class="flex items-center justify-center text-xs font-bold text-white/90">${aw>8?aw+"%":""}</div>
-    <div style="width:${hw}%;background:${hc};min-width:${hw>5?0:24}px" class="flex items-center justify-center text-xs font-bold text-white/90">${hw>8?hw+"%":""}</div>
-  </div>
-  <div class="mt-1 flex justify-between text-xs text-slate-600">
-    <span>${p.away_cn}</span><span>${p.home_cn}</span>
-  </div>`;
-
-  // Odds detail grid (2 rows, equal columns)
-  const mkt=Math.round(p.market_home_prob||0);
-  const be=p.bp>1?(100/p.bp).toFixed(1):"?";
-  const vg=p.value_gap||0;
-  const vc=vg>3?"text-emerald-400":vg<-3?"text-rose-400":"text-slate-400";
-  const oddsGrid=p.curr_home_odds?`
-  <div class="mt-3 space-y-1.5">
-    <div class="flex gap-1.5">
-      <div class="chip"><b>${p.curr_away_odds}</b>客隊賠率</div>
-      <div class="chip"><b>${p.curr_home_odds}</b>主隊賠率</div>
-      ${p.market_total?`<div class="chip"><b>${p.market_total}</b>大小分</div>`:""}
-    </div>
-    <div class="flex gap-1.5">
-      <div class="chip"><b>${mkt}%</b>市場主隊</div>
-      <div class="chip"><b>${hw}%</b>模型主隊</div>
-      <div class="chip"><b class="text-slate-400">${be}%</b>盈虧平衡</div>
-    </div>
-    ${vg?`<div class="chip w-full ${vc}"><b class="${vc}">${vg>0?"+":""}${vg.toFixed(1)}%</b> 模型 vs 市場差距</div>`:""}
-  </div>` : "";
-
-  // Signals
-  const sigs=(p.signals||[]).slice(0,2).map(s=>`
-    <div class="bg-blue-950/60 border border-blue-800/30 text-blue-300 text-xs px-3 py-1.5 rounded-lg leading-relaxed">${s}</div>`).join("");
-
-  return `<div class="card ${tc} p-4 mb-3">
-  <!-- Card header -->
-  <div class="flex items-start justify-between gap-3">
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-xs font-semibold text-slate-400">${tl}</span>
-        <span class="${bm}">${bl}</span>
-      </div>
-      <div class="text-lg font-bold text-white mt-1 leading-tight">
-        ${p.away_cn} <span class="text-slate-500 font-normal text-sm">@</span> ${p.home_cn}
-      </div>
-      ${venueLine}
-    </div>
-    <div class="text-right shrink-0">
-      <div class="text-2xl font-bold text-emerald-400 leading-none">$${p.stake||0}</div>
-      <div class="text-xs text-slate-500 mt-1">建議注額</div>
-    </div>
-  </div>
-
-  ${spLine}
-  ${betBox}
-  ${statsRow}
-  ${confBar}
-  ${probBar}
-  ${oddsGrid}
-  ${sigs?`<div class="mt-2 space-y-1">${sigs}</div>`:""}
-
-  <button onclick="toggleDetail('${uid}',this)"
-    class="mt-3 w-full h-10 text-xs text-slate-500 active:text-slate-300 border-t border-slate-700/40 flex items-center justify-center gap-1">
-    <span>▼</span><span>展開因子詳情</span>
-  </button>
-  <div id="${uid}" class="detail-section">
-    <div class="pt-3">${renderFactors(p.factors)}</div>
-  </div>
-</div>`;
-}
-
-// ── Factor detail ─────────────────────────────────────────
-function renderFactors(f) {
-  if(!f) return "";
-  const entries=Object.entries(f).filter(([,v])=>typeof v==="number");
-  if(!entries.length) return `<div class="text-xs text-slate-600 text-center py-2">詳細因子資料不可用</div>`;
-  return `<div class="grid grid-cols-2 gap-1.5 text-xs">`+entries.map(([k,v])=>{
-    const pct=Math.round(v*100);
-    const bar=pct>=55?"bg-emerald-600":pct>=45?"bg-amber-600":"bg-rose-600";
-    const w=Math.min(100,Math.abs(pct-50)*4+30);
-    return `<div class="bg-slate-800 rounded-lg p-2">
-      <div class="flex justify-between mb-1 text-slate-400">
-        <span>${FACTOR_LABEL[k]||k}</span>
-        <span class="${pct>=55?"text-emerald-400":pct<=45?"text-rose-400":"text-amber-400"}">${pct}%</span>
-      </div>
-      <div class="h-1.5 bg-slate-700 rounded overflow-hidden">
-        <div class="${bar} h-full rounded" style="width:${w}%"></div>
-      </div>
-    </div>`;
-  }).join("")+"</div>";
-}
-
-function toggleDetail(uid,btn) {
-  const el=document.getElementById(uid);
-  el.classList.toggle("open");
-  const icon=btn.querySelector("span:first-child");
-  const lbl=btn.querySelector("span:last-child");
-  if(el.classList.contains("open")){icon.textContent="▲";lbl.textContent="收起因子詳情";}
-  else{icon.textContent="▼";lbl.textContent="展開因子詳情";}
-}
-
-// ── Live games ────────────────────────────────────────────
-function renderLive() {
-  const sec=document.getElementById("live-section"), con=document.getElementById("live-container");
-  if(!liveGames.length){if(currentFilter!=="LIVE")sec.style.display="none";return;}
-  if(currentFilter!=="LIVE")sec.style.display="";
-  con.innerHTML=liveGames.map(g=>{
-    const inn=`${g.top_inning?"▲":"▼"}${g.inning}局`;
-    const bet=g.bet?`<div class="mt-3 bg-emerald-900/40 border border-emerald-700/50 rounded-lg px-3 py-2 text-xs text-emerald-300">
-      💡 <b>${g.bet}</b><br><span class="text-emerald-400/80">${g.reason||""}</span>
-    </div>`:"";
-    return `<div class="card p-4">
-      <div class="flex justify-between items-center">
-        <div>
-          <div class="font-bold text-base">${g.away_cn} <span class="text-slate-400 text-sm">@</span> ${g.home_cn}</div>
-          <div class="text-xs text-slate-500 mt-0.5">${inn} · 預計 ${g.projected_total||"—"} 分</div>
-        </div>
-        <div class="text-right">
-          <div class="text-3xl font-bold tracking-tight">${g.away_runs}:<span class="text-emerald-400">${g.home_runs}</span></div>
-        </div>
-      </div>${bet}</div>`;
-  }).join("");
-}
-
-// ── History drawer ────────────────────────────────────────
-function toggleHistory() {
-  const ov=document.getElementById("hist-overlay");
-  const showing=!ov.classList.contains("hidden");
-  ov.classList.toggle("hidden",showing);
-  if(!showing&&allHistory.length){
-    document.getElementById("hist-list").innerHTML=[...allHistory].reverse().map(h=>{
-      const [rc,lbl]=h.result==="W"?["text-emerald-400","✅ 勝"]:h.result==="L"?["text-rose-400","❌ 負"]:["text-slate-400","⏳ 待結算"];
-      return `<div class="card p-3.5">
-        <div class="flex justify-between items-start">
-          <span class="text-slate-500 text-xs">${h.date||""}</span>
-          <span class="font-bold text-xs ${rc}">${lbl}</span>
-        </div>
-        <div class="font-semibold text-sm mt-1">${h.bet_label||h.bet_type||""}</div>
-        <div class="text-slate-500 text-xs mt-0.5">${h.away||""} @ ${h.home||""} · 賠率 ${h.bp||"?"} · 注 $${h.stake||"?"}</div>
-      </div>`;
-    }).join("");
-  }
-}
-
-// ── Run modal ─────────────────────────────────────────────
-function openRunModal(){
-  const ov=document.getElementById("run-overlay");
-  ov.classList.remove("hidden"); ov.classList.add("flex");
-  document.getElementById("pat-inp").value=localStorage.getItem("cpbl_pat")||"";
-  document.getElementById("run-st").textContent="";
-}
-function closeRunModal(){
-  const ov=document.getElementById("run-overlay");
-  ov.classList.add("hidden"); ov.classList.remove("flex");
-}
-async function doRun(){
-  const token=document.getElementById("pat-inp").value.trim();
-  if(!token){alert("請輸入 PAT");return;}
-  localStorage.setItem("cpbl_pat",token);
-  const btn=document.getElementById("run-btn"),st=document.getElementById("run-st");
-  btn.disabled=true;btn.textContent="執行中…";st.textContent="";
-  try{
-    const res=await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
-      {method:"POST",headers:{"Authorization":`Bearer ${token}`,"Accept":"application/vnd.github+json",
-       "X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},body:JSON.stringify({ref:"main"})});
-    if(res.status===204){
-      st.className="text-sm text-center mb-3 text-emerald-400";
-      st.textContent="✅ 已成功觸發！約需 2 分鐘後請重新整理。";
-      setTimeout(closeRunModal,3500);
-    }else{
-      const j=await res.json().catch(()=>({}));
-      st.className="text-sm text-center mb-3 text-rose-400";
-      st.textContent="❌ "+(j.message||"失敗 "+res.status);
-    }
-  }catch(e){
-    st.className="text-sm text-center mb-3 text-rose-400";
-    st.textContent="❌ "+e.message;
-  }
-  btn.disabled=false;btn.textContent="確認執行";
-}
-document.getElementById("run-overlay").addEventListener("click",function(e){if(e.target===this)closeRunModal();});
-
-// ── Picks + Predictions ───────────────────────────────────
-function renderPicks() {
-  const container = document.getElementById("picks-container");
-  if (currentFilter === "LIVE") return;
-  cardIdx = 0;
-  let html = "";
-
-  if (currentFilter === "ALL") {
-    // Show all predictions in one flat list: picks first, then non-recommended
-    const recPreds  = allPredictions.filter(p => p.recommended);
-    const nonRec    = allPredictions.filter(p => !p.recommended);
-    if (recPreds.length || nonRec.length) {
-      html += recPreds.map(p => renderCard(p)).join("");
-      html += nonRec.map(p => renderRefCard(p)).join("");
-    } else {
-      html = `<div class="card p-10 text-center text-slate-500">今日無分析資料<br><small class="text-slate-600 mt-2 block">請先執行預測機器人</small></div>`;
-    }
-  } else {
-    const filtered = allPicks.filter(p => p.btype === currentFilter);
-    html = filtered.length
-      ? filtered.map(p => renderCard(p)).join("")
-      : `<div class="card p-10 text-center text-slate-500">無 ${currentFilter} 推薦</div>`;
-  }
-
-  container.innerHTML = html;
-}
-
-function renderRefCard(p) {
-  const hw = Math.round((p.home_win_prob||0)*100);
-  const aw = Math.round((p.away_win_prob||0)*100);
-  const ac = TEAM_COLOR[p.away]||"#6b7280";
-  const hc = TEAM_COLOR[p.home]||"#6b7280";
-  const asp = p.away_sp||{};
-  const hsp = p.home_sp||{};
-  const gd = (p.game_date||gameDate||"").replace(/^\d{4}-/,"");
-  const gt = p.game_time||p.time||"";
-  const dtStr = [gd,gt].filter(Boolean).join(" ");
-  const venueLine = dtStr
-    ? `<div class="text-xs text-slate-500 mt-1">🗓️ ${dtStr}${p.venue?" · 🏟️ "+p.venue:""}</div>` : "";
-  const spLine = (asp.name||hsp.name) ? `
-  <div class="mt-2 rounded-xl overflow-hidden border border-slate-700/50">
-    <div class="bg-slate-800/40 px-3 py-1 text-xs text-slate-500 font-medium">⚾ 先發投手</div>
-    <div class="bg-slate-800/20 px-3 py-2 space-y-1.5">
-      <div class="flex items-baseline gap-2 text-xs"><span class="shrink-0 text-slate-600 font-medium w-4">客</span><span class="leading-relaxed">${fmtSP(asp)}</span></div>
-      <div class="flex items-baseline gap-2 text-xs"><span class="shrink-0 text-slate-600 font-medium w-4">主</span><span class="leading-relaxed">${fmtSP(hsp)}</span></div>
-    </div>
-  </div>` : "";
-  const advTeam = hw >= aw ? p.home_cn : p.away_cn;
-  const advPct  = Math.max(hw, aw);
-  const defPct  = Math.min(hw, aw);
-
-  return `<div class="card p-4 mb-3" style="border-left:4px solid #475569">
-  <div class="flex items-start justify-between gap-3">
-    <div class="flex-1 min-w-0">
-      <div class="text-base font-bold text-slate-300 leading-tight">${p.away_cn} <span class="text-slate-600 font-normal text-sm">@</span> ${p.home_cn}</div>
-      ${venueLine}
-    </div>
-    <div class="shrink-0 bg-amber-950/60 border border-amber-700/50 rounded-lg px-2.5 py-1 text-center">
-      <div class="text-xs font-bold text-amber-400">（不推薦下注）</div>
-    </div>
-  </div>
-  ${spLine}
-  <div class="mt-3 prob-bar">
-    <div style="width:${aw}%;background:${ac};min-width:${aw>5?0:24}px" class="flex items-center justify-center text-xs font-bold text-white/90">${aw>8?aw+"%":""}</div>
-    <div style="width:${hw}%;background:${hc};min-width:${hw>5?0:24}px" class="flex items-center justify-center text-xs font-bold text-white/90">${hw>8?hw+"%":""}</div>
-  </div>
-  <div class="mt-1 flex justify-between text-xs text-slate-600">
-    <span>${p.away_cn}</span><span>${p.home_cn}</span>
-  </div>
-  <div class="mt-2 bg-slate-800/40 rounded-xl px-3 py-2 text-sm">
-    <b class="text-slate-200">${advTeam}</b><span class="text-slate-400"> 勝算較高 (${advPct}% vs ${defPct}%)</span>
-  </div>
-  <div class="mt-2 flex items-center gap-2 bg-amber-950/40 border border-amber-800/30 rounded-lg px-3 py-2">
-    <span class="text-amber-400 text-sm">⚠️</span>
-    <span class="text-amber-300/80 text-xs">差距不足或波動過大（不推薦下注）</span>
-  </div>
-</div>`;
-}
-
-// ── Utilities ─────────────────────────────────────────────
-function copyText(t){
-  navigator.clipboard?.writeText(t).then(()=>{
-    const el=document.createElement("div");
-    el.className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-700 text-white text-sm px-4 py-2 rounded-full shadow-lg";
-    el.textContent="✓ 已複製";document.body.appendChild(el);setTimeout(()=>el.remove(),1800);
-  });
-}
-
-loadData();
-setInterval(loadData,300000);
-</script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
