@@ -40,12 +40,28 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     alert_email_to: str | None = None
 
-    # --- Broker credentials (unused unless trading_mode == "live") ---
+    # --- Broker credentials (all unused unless trading_mode == "live") ---
+    # US stocks/ETF via Alpaca
     alpaca_api_key: str | None = None
     alpaca_secret_key: str | None = None
     alpaca_base_url: str = "https://paper-api.alpaca.markets"
-    binance_api_key: str | None = None
-    binance_secret: str | None = None
+
+    # Crypto via CCXT -- exchange_id is any id ccxt supports: binance, bybit,
+    # okx, coinbase, kraken, bitget, ... exchange_api_password is only needed
+    # by exchanges that require a passphrase (e.g. OKX, Coinbase Advanced Trade).
+    exchange_id: str = "binance"
+    exchange_api_key: str | None = None
+    exchange_api_secret: str | None = None
+    exchange_api_password: str | None = None
+    exchange_use_testnet: bool = True  # default to the exchange's sandbox/testnet, not real funds
+
+    # Global markets (stocks/futures/forex/options) via Interactive Brokers
+    # TWS/IB Gateway. Requires TWS or IB Gateway running and reachable --
+    # never turns on by itself. Default port 7497 is TWS's *paper* port.
+    ibkr_enabled: bool = False
+    ibkr_host: str = "127.0.0.1"
+    ibkr_port: int = 7497
+    ibkr_client_id: int = 1
 
     # --- Database ---
     database_url: str = f"sqlite:///{DATA_DIR / 'quant.db'}"

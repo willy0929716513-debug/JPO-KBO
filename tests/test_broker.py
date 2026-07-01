@@ -24,3 +24,31 @@ def test_get_broker_live_without_keys_raises():
     import pytest
     with pytest.raises(RuntimeError):
         get_broker("live")
+
+
+def test_get_broker_live_crypto_without_keys_raises():
+    import pytest
+    with pytest.raises(RuntimeError):
+        get_broker("live", asset_class="crypto")
+
+
+def test_get_broker_live_equity_without_keys_raises():
+    import pytest
+    with pytest.raises(RuntimeError):
+        get_broker("live", asset_class="equity")
+
+
+def test_ccxt_broker_without_credentials_raises():
+    import pytest
+
+    from src.broker.ccxt_broker import CCXTBroker
+    with pytest.raises(RuntimeError):
+        CCXTBroker()
+
+
+def test_ibkr_broker_without_enabled_flag_raises():
+    import pytest
+
+    from src.broker.ibkr_broker import IBKRBroker
+    with pytest.raises(RuntimeError):
+        IBKRBroker()
