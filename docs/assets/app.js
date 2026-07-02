@@ -3,6 +3,24 @@ const HISTORY_URL = "data/history.json";
 const DASHBOARD_REFRESH_MS = 60_000; // pipeline data only changes when Actions runs, but this keeps the page current without a manual click
 const LIVE_CRYPTO_SYMBOLS = ["btcusdt", "ethusdt"];
 
+// Plain-language translations so the page reads naturally in Chinese
+// instead of exposing raw English strategy/regime jargon.
+const SYMBOL_NAMES = {
+  AAPL: "蘋果", MSFT: "微軟", NVDA: "輝達", TSLA: "特斯拉",
+  SPY: "標普500 ETF", QQQ: "那斯達克100 ETF", "2330.TW": "台積電",
+  "GC=F": "黃金", "SI=F": "白銀", "CL=F": "原油", "EURUSD=X": "歐元/美元",
+  "BTC/USDT": "比特幣", "ETH/USDT": "以太幣",
+};
+const ACTION_ZH = { BUY: "買進", SELL: "賣出", HOLD: "觀望" };
+const REGIME_ZH = {
+  bull_trend: "上漲趨勢", bear_trend: "下跌趨勢", range_bound: "區間盤整",
+  high_volatility: "波動較大", low_volatility: "走勢平穩", unknown: "資料不足",
+};
+const FEAR_GREED_ZH = {
+  "Extreme Fear": "極度恐慌", "Fear": "恐慌", "Neutral": "中性",
+  "Greed": "貪婪", "Extreme Greed": "極度貪婪",
+};
+
 function badgeClass(action) {
   if (action === "BUY") return "badge-buy";
   if (action === "SELL") return "badge-sell";
@@ -14,20 +32,106 @@ function fmtNum(n, digits = 2) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
+function confidenceLabel(c) {
+  if (c >= 0.6) return "高";
+  if (c >= 0.3) return "中";
+  return "低";
+}
+
+function confidenceDots(c) {
+  const filled = c >= 0.6 ? 3 : c >= 0.3 ? 2 : 1;
+  return Array.from({ length: 3 }, (_, i) =>
+    `<span class="${i < filled ? "filled" : ""}"></span>`
+  ).join("");
+}
+
+// The multi-agent risk check can veto a technically-strong signal (e.g. a
+// symbol that just hit its drawdown limit) -- this is the single "what
+// should I actually do" answer shown on the simple card, folding that veto
+// in so the page never shows two contradicting recommendations for one symbol.
+function effectiveAction(s) {
+  const vetoed = s.decision_engine && s.decision_engine.vetoed;
+  return vetoed ? "HOLD" : s.signal.final_action;
+}
+
+function buildPlainReason(s) {
+  const vetoed = s.decision_engine && s.decision_engine.vetoed;
+  if (vetoed) {
+    return "⚠️ 風控機制建議暫緩進場（近期虧損或風險超出安全範圍），先觀望比較保險";
+  }
+  const action = s.signal.final_action;
+  const regimeText = REGIME_ZH[s.regime.state] || "資料不足";
+  if (action === "BUY") return `目前${regimeText}，多項技術指標偏多，可考慮找機會分批買進`;
+  if (action === "SELL") return `目前${regimeText}，多項技術指標偏空，可考慮減碼或先賣出`;
+  return `目前${regimeText}，訊號不夠明確，建議先觀望，不用急著進場`;
+}
+
+function renderFearGreed(fg) {
+  const el = document.getElementById("fear-greed");
+  if (!fg || fg.value === null || fg.value === undefined) {
+    el.innerHTML = "市場情緒：無資料";
+    return;
+  }
+  const fgZh = FEAR_GREED_ZH[fg.classification] || fg.classification;
+  const pct = Math.max(0, Math.min(100, fg.value));
+  el.innerHTML = `市場情緒：${fgZh}（${fg.value}）
+    <span class="fg-gauge"><span class="fg-gauge-track"><span class="fg-gauge-thumb" style="left:${pct}%"></span></span></span>`;
+}
+
 function renderSummary(payload) {
   const counts = { BUY: 0, SELL: 0, HOLD: 0 };
-  payload.signals.forEach((s) => counts[s.signal.final_action]++);
+  payload.signals.forEach((s) => counts[effectiveAction(s)]++);
 
   const cards = [
     { label: "分析標的數", value: `${payload.successful} / ${payload.watchlist_size}` },
-    { label: "BUY 訊號", value: counts.BUY },
-    { label: "SELL 訊號", value: counts.SELL },
-    { label: "HOLD 訊號", value: counts.HOLD },
+    { label: "建議買進", value: counts.BUY },
+    { label: "建議賣出", value: counts.SELL },
+    { label: "建議觀望", value: counts.HOLD },
   ];
 
   document.getElementById("summary-cards").innerHTML = cards
     .map((c) => `<div class="card"><div class="label">${c.label}</div><div class="value">${c.value}</div></div>`)
     .join("");
+}
+
+function renderSimpleSignals(payload) {
+  const container = document.getElementById("simple-signals");
+  container.className = "pick-grid";
+  const signals = payload.signals || [];
+  if (signals.length === 0) {
+    container.innerHTML = `<p class="footnote">尚無資料</p>`;
+    return;
+  }
+
+  const sorted = signals.slice().sort((a, b) => {
+    const rank = (s) => (effectiveAction(s) === "HOLD" ? 1 : 0);
+    const diff = rank(a) - rank(b);
+    return diff !== 0 ? diff : b.signal.confidence - a.signal.confidence;
+  });
+
+  container.innerHTML = sorted.map((s, i) => {
+    const sig = s.signal;
+    const action = effectiveAction(s);
+    const name = SYMBOL_NAMES[s.symbol] || s.symbol;
+    const conf = (s.decision_engine && s.decision_engine.vetoed) ? 0 : sig.confidence;
+
+    return `<div class="pick-card ${badgeClass(action)}-card" style="animation-delay:${Math.min(i * 35, 350)}ms">
+      <div class="pick-head">
+        <div class="pick-name">${name} <span class="pick-symbol">${s.symbol}</span></div>
+        <div class="pick-action badge ${badgeClass(action)}">${ACTION_ZH[action]}</div>
+      </div>
+      <div class="pick-price">目前價格：<b class="num">${fmtNum(s.last_price, 4)}</b></div>
+      <div class="pick-levels num">
+        <span>建議停損：${fmtNum(sig.stop_loss, 4)}</span>
+        <span>建議停利：${fmtNum(sig.take_profit, 4)}</span>
+      </div>
+      <div class="confidence-row">
+        信心程度：${confidenceLabel(conf)}
+        <span class="confidence-dots">${confidenceDots(conf)}</span>
+      </div>
+      <div class="pick-reason">${buildPlainReason(s)}</div>
+    </div>`;
+  }).join("");
 }
 
 function renderDecisionBadge(decision) {
@@ -138,11 +242,10 @@ async function loadDashboard() {
 
     document.getElementById("generated-at").textContent =
       "最後更新: " + new Date(payload.generated_at).toLocaleString();
-    const fg = payload.market_sentiment?.crypto_fear_greed;
-    document.getElementById("fear-greed").textContent =
-      fg && fg.value !== null ? `Fear & Greed: ${fg.value} (${fg.classification})` : "Fear & Greed: N/A";
+    renderFearGreed(payload.market_sentiment?.crypto_fear_greed);
 
     renderSummary(payload);
+    renderSimpleSignals(payload);
     renderSignals(payload);
     renderPairs(payload);
     renderBacktest(payload);
@@ -167,24 +270,44 @@ async function loadDashboard() {
 // pipeline refresh below instead of pretending to be live.
 function startLiveCryptoTicker() {
   const container = document.getElementById("live-crypto");
+  const statusDot = document.getElementById("live-status");
   if (!container) return;
 
   const streams = LIVE_CRYPTO_SYMBOLS.map((s) => `${s}@ticker`).join("/");
   const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
   const lastPrices = {};
+  let itemsBuilt = false;
 
-  const render = () => {
-    container.innerHTML = LIVE_CRYPTO_SYMBOLS.map((s) => {
-      const data = lastPrices[s];
-      if (!data) return `<div class="live-price-item"><span class="live-symbol">${s.toUpperCase()}</span><span class="live-value">連線中...</span></div>`;
-      const changeClass = data.changePct >= 0 ? "live-up" : "live-down";
-      const arrow = data.changePct >= 0 ? "▲" : "▼";
-      return `<div class="live-price-item">
+  const buildItems = () => {
+    container.innerHTML = LIVE_CRYPTO_SYMBOLS.map((s) =>
+      `<div class="live-price-item" id="live-${s}">
         <span class="live-symbol">${s.replace("usdt", "").toUpperCase()}/USDT</span>
-        <span class="live-value">${fmtNum(data.price, 2)}</span>
-        <span class="live-change ${changeClass}">${arrow} ${fmtNum(Math.abs(data.changePct), 2)}%</span>
-      </div>`;
-    }).join("");
+        <span class="live-value num">連線中...</span>
+      </div>`
+    ).join("");
+    itemsBuilt = true;
+  };
+
+  const updateItem = (s, data, prevPrice) => {
+    const el = document.getElementById(`live-${s}`);
+    if (!el) return;
+    const changeClass = data.changePct >= 0 ? "live-up" : "live-down";
+    const arrow = data.changePct >= 0 ? "▲" : "▼";
+    el.innerHTML = `
+      <span class="live-symbol">${s.replace("usdt", "").toUpperCase()}/USDT</span>
+      <span class="live-value num">${fmtNum(data.price, 2)}</span>
+      <span class="live-change ${changeClass}">${arrow} ${fmtNum(Math.abs(data.changePct), 2)}%</span>`;
+
+    if (prevPrice !== undefined && prevPrice !== data.price) {
+      el.classList.remove("live-flash-up", "live-flash-down");
+      // reflow so the animation can be re-triggered on rapid consecutive ticks
+      void el.offsetWidth;
+      el.classList.add(data.price > prevPrice ? "live-flash-up" : "live-flash-down");
+    }
+  };
+
+  ws.onopen = () => {
+    if (statusDot) statusDot.style.display = "inline-block";
   };
 
   ws.onmessage = (event) => {
@@ -192,19 +315,23 @@ function startLiveCryptoTicker() {
       const msg = JSON.parse(event.data);
       const ticker = msg.data;
       if (!ticker || !ticker.s) return;
+      if (!itemsBuilt) buildItems();
       const symbol = ticker.s.toLowerCase();
-      lastPrices[symbol] = { price: parseFloat(ticker.c), changePct: parseFloat(ticker.P) };
-      render();
+      const prevPrice = lastPrices[symbol]?.price;
+      const data = { price: parseFloat(ticker.c), changePct: parseFloat(ticker.P) };
+      lastPrices[symbol] = data;
+      updateItem(symbol, data, prevPrice);
     } catch (err) {
       console.warn("live ticker parse error", err);
     }
   };
 
   ws.onerror = () => {
+    if (statusDot) statusDot.style.display = "none";
     container.innerHTML = `<div class="live-price-item">即時報價連線失敗（可能是網路封鎖了 WebSocket），股票/黃金等其他標的價格不受影響</div>`;
   };
 
-  render();
+  buildItems();
 }
 
 document.getElementById("refresh-btn").addEventListener("click", loadDashboard);

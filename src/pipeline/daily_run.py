@@ -112,12 +112,22 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     # Risk status is checked against this symbol's own trend-following equity
     # curve as a stand-in for a live portfolio equity curve (which doesn't
     # exist yet -- no persistent broker state), so it reflects "would this
-    # strategy on this symbol currently be within its risk limits."
-    trend_equity = backtest_results["trend_following"].equity_curve
-    loss_status = LossLimitMonitor().check(trend_equity)
-    drawdown_breached = DrawdownCircuitBreaker().update(trend_equity)
+    # strategy on this symbol currently be within its risk limits." Only the
+    # most recent window is used for that check -- the backtest spans years,
+    # and a >20% drawdown *somewhere* over that long a history is normal, not
+    # a sign of a live risk problem *today*. Using the full history here made
+    # the risk veto trip on almost every symbol, which is a real bug, not a
+    # genuinely risk-averse call. The full-history curve is still used for
+    # backtest_snapshot below, where "how has this strategy performed
+    # historically" is exactly what should be shown.
+    trend_equity_full = backtest_results["trend_following"].equity_curve
+    recent_window = min(90, len(trend_equity_full))
+    trend_equity_recent = trend_equity_full.tail(recent_window)
+
+    loss_status = LossLimitMonitor().check(trend_equity_recent)
+    drawdown_breached = DrawdownCircuitBreaker().update(trend_equity_recent)
     risk_status = {
-        "current_drawdown_pct": round(max_drawdown(trend_equity) * 100, 2),
+        "current_drawdown_pct": round(max_drawdown(trend_equity_recent) * 100, 2),
         "drawdown_circuit_breaker_tripped": drawdown_breached,
         **loss_status.to_dict(),
     }
@@ -125,7 +135,7 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     decision_engine = DecisionEngine([TechnicalAgent(combiner, RegimeDetector()), MacroAgent(),
                                        RiskAgent(loss_limit_monitor=LossLimitMonitor())])
     context = AgentContext(symbol=symbol, features=features, macro_snapshot=macro_snapshot,
-                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity)
+                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity_recent)
     decision = decision_engine.decide(context)
 
     return {

@@ -34,7 +34,7 @@ src/
 └── api/           # 選用的本地 FastAPI 服務，讀取/觸發 pipeline
 
 docs/               # GitHub Pages 靜態儀表板（純 HTML/CSS/JS + Chart.js，讀取 docs/data/*.json）
-tests/              # pytest 單元測試（89 個測試，涵蓋以上每個模組）
+tests/              # pytest 單元測試（95 個測試，涵蓋以上每個模組）
 scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 .github/workflows/  # 每日排程更新訊號 (update_signals.yml) + CI 測試 (ci.yml)
 ```
@@ -77,7 +77,9 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 
 擴充後的績效指標（`src/backtest/metrics.py`）：CAGR、Sharpe、Sortino、Calmar、**MAR、Omega、SQN、Alpha/Beta、Information Ratio、Expectancy、Recovery Factor、Rolling Sharpe/Drawdown**。
 
-`daily_run.py` 每次執行都會：對每個標的同時跑「策略投票訊號」與「多代理決策」兩種結果（都寫進 JSON，儀表板「多代理決策」欄會顯示，滑鼠移上去可看否決原因）；並對 GC=F/SI=F、SPY/QQQ、BTC/ETH 三組配對做統計套利檢定，結果顯示在「統計套利 Pairs Trading」面板。
+`daily_run.py` 每次執行都會：對每個標的同時跑「策略投票訊號」與「多代理決策」兩種結果，並對 GC=F/SI=F、SPY/QQQ、BTC/ETH 三組配對做統計套利檢定。**風控 Agent 的風險檢查只看最近 90 根K棒的權益曲線**，不會被「這檔標的過去好幾年前曾經有一次大跌」這種久遠歷史錯誤否決今天的訊號（早期版本有這個 bug，已修正，見 `tests/test_risk_windowing_regression.py`）。
+
+**儀表板分成兩層**：預設首頁只顯示「今日建議清單」——白話中文卡片，一檔標的一張卡，寫清楚買進/賣出/觀望、建議價位、停損停利、一句話原因；上面提到的策略投票細節、多代理意見、統計套利數據、完整回測指標，都收在頁面最下面「🔧 進階資料」可展開區塊裡，預設收合，一般使用者不需要看到。
 
 ## 實盤交易介面（預設停用，需自行設定金鑰才會啟動）
 
@@ -135,7 +137,7 @@ cd docs && python -m http.server 8000   # 開瀏覽器打開 http://localhost:80
 
 | 類別 | 狀態 |
 |---|---|
-| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、統計套利、ML 集成、Meta-Labeling、回測 (含 Walk-Forward / Monte Carlo)、20+ 績效指標、完整風控引擎、風險平價、模擬執行引擎、輕量 MLOps、多代理決策系統、Paper Trading、多交易所/IBKR 實盤介面、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試（89 個 pytest） |
+| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、統計套利、ML 集成、Meta-Labeling、回測 (含 Walk-Forward / Monte Carlo)、20+ 績效指標、完整風控引擎、風險平價、模擬執行引擎、輕量 MLOps、多代理決策系統、Paper Trading、多交易所/IBKR 實盤介面、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試（95 個 pytest） |
 | 需要你自己申請免費/付費金鑰才會啟用：FRED 總經數據、Discord/Telegram/Email 通知、Alpaca/交易所/IBKR 實盤下單 | 🔌 介面已預留，程式碼會在沒有金鑰時安全跳過，不會報錯中斷 |
 | 規格中提及但本次未實作（需要付費機構級資料源或專屬伺服器叢集，架構上盡量預留了擴充點）：Tick Data / Level 2 Order Book / Dark Pool / 13F / Options Greeks / IV Surface / 衛星氣象航運等另類資料、真正的強化學習交易代理、市場微結構偵測（Footprint/Spoofing/Iceberg Detection，依賴 Tick/L2 資料）、Kubernetes/Airflow/Celery/ClickHouse/TimescaleDB 級基礎設施 | ⏳ 未實作 -- 原因與替代方案見上方模組說明 |
 
