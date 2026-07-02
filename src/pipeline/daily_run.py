@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import traceback
 from datetime import datetime, timezone
 
@@ -70,10 +71,30 @@ def _load_ohlcv(symbol: str, asset_class: str, interval: str = "1d") -> pd.DataF
     return YFinanceProvider().get_ohlcv(symbol, interval)
 
 
+def _json_safe(obj):
+    """Recursively replaces NaN/Infinity floats with None so json.dump produces
+    strictly valid JSON. Python's json module writes bare `NaN` / `Infinity`
+    tokens by default, which round-trip fine in Python but are rejected by
+    every browser's JSON.parse (per RFC 8259) -- a single NaN anywhere in the
+    payload silently breaks the whole dashboard fetch with no error visible
+    on the Python side that produced it.
+    """
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snapshot: dict,
                      sentiment_snapshot: dict) -> dict | None:
     if df.empty or len(df) < 80:
         logger.warning("Skipping %s: insufficient data (%d rows)", symbol, len(df))
+        return None
+    if pd.isna(df["close"].iloc[-1]):
+        logger.warning("Skipping %s: latest close price is NaN (bad data from provider)", symbol)
         return None
 
     features = FeaturePipeline().build(df)
@@ -179,7 +200,7 @@ def run_daily_pipeline() -> dict:
     DOCS_DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DOCS_DATA_DIR / "signals_latest.json"
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, default=str)
+        json.dump(_json_safe(payload), f, indent=2, default=str, allow_nan=False)
     logger.info("Wrote %d signals to %s", len(results), out_path)
 
     history_path = DOCS_DATA_DIR / "history.json"
@@ -194,7 +215,7 @@ def run_daily_pipeline() -> dict:
         "signals": [{"symbol": r["symbol"], "action": r["signal"]["final_action"],
                      "confidence": r["signal"]["confidence"], "price": r["last_price"]} for r in results],
     })
-    history_path.write_text(json.dumps(history[-90:], indent=2, default=str))  # keep last 90 runs
+    history_path.write_text(json.dumps(_json_safe(history[-90:]), indent=2, default=str, allow_nan=False))  # keep last 90 runs
 
     return payload
 

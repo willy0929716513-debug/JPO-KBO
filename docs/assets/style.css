@@ -89,3 +89,51 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .live-change { font-weight: 700; font-size: 13px; }
 .live-up { color: var(--green); }
 .live-down { color: var(--red); }
+
+/* ---------------------------------------------------------------- mobile ---
+   Below ~700px (covers all current iPhone widths in portrait) every data
+   table switches from a horizontally-scrolling grid to a stacked list of
+   cards -- one card per row, each field labeled -- since side-scrolling a
+   10-column table on a phone is unreadable no matter how small the font. */
+@media (max-width: 700px) {
+  .topbar { padding: 20px 14px; }
+  .topbar h1 { font-size: 21px; }
+  .subtitle { font-size: 13px; }
+  .container { padding: 16px 12px 40px; }
+
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .card .value { font-size: 19px; }
+
+  .panel { padding: 14px; }
+  .panel h2 { font-size: 15.5px; }
+
+  .live-price-row { gap: 10px; }
+  .live-price-item { flex: 1 1 45%; padding: 10px 12px; }
+
+  .table-wrap { overflow-x: visible; }
+
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+
+  table tr {
+    background: #0f1524; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 10px;
+  }
+  table tr:hover td { background: transparent; }
+
+  table td {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px dashed var(--border); white-space: normal;
+    text-align: right;
+  }
+  table td:last-child { border-bottom: none; }
+
+  table td::before {
+    content: attr(data-label);
+    color: var(--muted); font-weight: 600; font-size: 12.5px;
+    text-align: left; flex-shrink: 0;
+  }
+
+  table td.reasons { display: block; text-align: left; }
+  table td.reasons::before { content: attr(data-label) "："; display: block; margin-bottom: 4px; }
+}

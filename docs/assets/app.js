@@ -50,16 +50,16 @@ function renderSignals(payload) {
         .map((v) => `${v.strategy}: ${v.action} (${(v.confidence * 100).toFixed(0)}%)`)
         .join(" · ");
       return `<tr>
-        <td><b>${s.symbol}</b></td>
-        <td>${s.asset_class}</td>
-        <td>${fmtNum(s.last_price, 4)}</td>
-        <td><span class="badge ${badgeClass(sig.final_action)}">${sig.final_action}</span></td>
-        <td>${(sig.confidence * 100).toFixed(1)}%</td>
-        <td>${s.regime.state}</td>
-        <td>${fmtNum(sig.stop_loss, 4)}</td>
-        <td>${fmtNum(sig.take_profit, 4)}</td>
-        <td>${renderDecisionBadge(s.decision_engine)}</td>
-        <td class="reasons">${reasons}</td>
+        <td data-label="Symbol"><b>${s.symbol}</b></td>
+        <td data-label="資產類別">${s.asset_class}</td>
+        <td data-label="價格">${fmtNum(s.last_price, 4)}</td>
+        <td data-label="訊號"><span class="badge ${badgeClass(sig.final_action)}">${sig.final_action}</span></td>
+        <td data-label="信心度">${(sig.confidence * 100).toFixed(1)}%</td>
+        <td data-label="市場狀態">${s.regime.state}</td>
+        <td data-label="停損">${fmtNum(sig.stop_loss, 4)}</td>
+        <td data-label="停利">${fmtNum(sig.take_profit, 4)}</td>
+        <td data-label="多代理決策">${renderDecisionBadge(s.decision_engine)}</td>
+        <td data-label="細節" class="reasons">${reasons}</td>
       </tr>`;
     })
     .join("");
@@ -69,15 +69,15 @@ function renderSignals(payload) {
 function renderPairs(payload) {
   const pairs = payload.pairs_signals || [];
   const rows = pairs.map((p) => `<tr>
-    <td><b>${p.symbol_a}</b></td>
-    <td><b>${p.symbol_b}</b></td>
-    <td>${p.cointegrated ? "✅ 通過" : "❌ 未通過"}</td>
-    <td>${fmtNum(p.p_value, 4)}</td>
-    <td>${fmtNum(p.zscore, 2)}</td>
-    <td>${fmtNum(p.hedge_ratio, 4)}</td>
-    <td><span class="badge ${badgeClass(p.action_a)}">${p.action_a}</span></td>
-    <td><span class="badge ${badgeClass(p.action_b)}">${p.action_b}</span></td>
-    <td class="reasons">${(p.reasons || []).join(" · ")}</td>
+    <td data-label="標的 A"><b>${p.symbol_a}</b></td>
+    <td data-label="標的 B"><b>${p.symbol_b}</b></td>
+    <td data-label="共整合檢定">${p.cointegrated ? "✅ 通過" : "❌ 未通過"}</td>
+    <td data-label="p-value">${fmtNum(p.p_value, 4)}</td>
+    <td data-label="價差 Z-score">${fmtNum(p.zscore, 2)}</td>
+    <td data-label="避險比率">${fmtNum(p.hedge_ratio, 4)}</td>
+    <td data-label="A 動作"><span class="badge ${badgeClass(p.action_a)}">${p.action_a}</span></td>
+    <td data-label="B 動作"><span class="badge ${badgeClass(p.action_b)}">${p.action_b}</span></td>
+    <td data-label="說明" class="reasons">${(p.reasons || []).join(" · ")}</td>
   </tr>`).join("");
   document.getElementById("pairs-body").innerHTML = rows || `<tr><td colspan="9">尚無資料</td></tr>`;
 }
@@ -87,14 +87,14 @@ function renderBacktest(payload) {
   payload.signals.forEach((s) => {
     Object.entries(s.backtest || {}).forEach(([strategy, m]) => {
       rows.push(`<tr>
-        <td>${s.symbol}</td><td>${strategy}</td>
-        <td>${fmtNum(m.total_return_pct)}%</td>
-        <td>${fmtNum(m.cagr_pct)}%</td>
-        <td>${fmtNum(m.sharpe_ratio, 2)}</td>
-        <td>${fmtNum(m.sortino_ratio, 2)}</td>
-        <td>${fmtNum(m.max_drawdown_pct)}%</td>
-        <td>${fmtNum(m.win_rate_pct)}%</td>
-        <td>${m.num_trades}</td>
+        <td data-label="Symbol">${s.symbol}</td><td data-label="策略">${strategy}</td>
+        <td data-label="總報酬">${fmtNum(m.total_return_pct)}%</td>
+        <td data-label="年化報酬 CAGR">${fmtNum(m.cagr_pct)}%</td>
+        <td data-label="Sharpe">${fmtNum(m.sharpe_ratio, 2)}</td>
+        <td data-label="Sortino">${fmtNum(m.sortino_ratio, 2)}</td>
+        <td data-label="最大回撤 MDD">${fmtNum(m.max_drawdown_pct)}%</td>
+        <td data-label="勝率">${fmtNum(m.win_rate_pct)}%</td>
+        <td data-label="交易次數">${m.num_trades}</td>
       </tr>`);
     });
   });
