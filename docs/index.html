@@ -26,7 +26,7 @@
     </section>
 
     <section class="panel live-panel">
-      <h2>💰 即時價格（比特幣 / 以太幣）</h2>
+      <h2>💰 即時價格（比特幣 / 以太幣）<span id="live-status" class="pulse-dot" style="display:none" title="即時連線中"></span></h2>
       <div id="live-crypto" class="live-price-row"></div>
     </section>
 
@@ -34,8 +34,10 @@
 
     <section class="panel">
       <h2>📋 今日建議清單</h2>
-      <div id="simple-signals" class="pick-grid">
-        <p class="footnote">尚未產生建議，請稍候自動更新，或按上方「重新整理」。</p>
+      <div id="simple-signals" class="skeleton-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
       </div>
     </section>
 
