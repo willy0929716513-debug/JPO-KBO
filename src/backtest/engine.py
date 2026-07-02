@@ -62,8 +62,8 @@ class BacktestEngine:
                 if position != 0:
                     pnl_pct = position * (price / entry_price - 1) - self.cost_bps
                     pnl_abs = equity * pnl_pct
-                    equity += pnl_abs
-                    trades.append(Trade(str(entry_time), str(ts), position, entry_price, price, pnl_pct, pnl_abs))
+                    equity = max(equity + pnl_abs, 0.0)  # this simplified engine has no margin calls, so a short
+                    trades.append(Trade(str(entry_time), str(ts), position, entry_price, price, pnl_pct, pnl_abs))  # that moves >100% against it must be floored explicitly
                 if desired_position != 0:
                     equity -= equity * self.cost_bps  # entry cost
                     entry_price = price
@@ -73,7 +73,7 @@ class BacktestEngine:
             # mark-to-market unrealized PnL for the equity curve
             if position != 0 and entry_price:
                 unrealized = position * (price / entry_price - 1)
-                equity_curve.append(equity * (1 + unrealized))
+                equity_curve.append(max(equity * (1 + unrealized), 0.0))
             else:
                 equity_curve.append(equity)
 
@@ -82,7 +82,7 @@ class BacktestEngine:
             price = close.iloc[-1]
             pnl_pct = position * (price / entry_price - 1) - self.cost_bps
             pnl_abs = equity * pnl_pct
-            equity += pnl_abs
+            equity = max(equity + pnl_abs, 0.0)
             trades.append(Trade(str(entry_time), str(close.index[-1]), position, entry_price, price, pnl_pct, pnl_abs))
             equity_curve[-1] = equity
 

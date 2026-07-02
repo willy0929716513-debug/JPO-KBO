@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Quant Trading Dashboard｜量化交易訊號儀表板</title>
+<title>今日交易建議｜量化訊號小幫手</title>
 <link rel="stylesheet" href="assets/style.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <h1>📈 Quant Trading Signal Dashboard</h1>
-      <p class="subtitle">股票 / ETF / 黃金 / 原油 / 外匯 / 加密貨幣 — 自動化技術分析與策略訊號（僅供研究與紙上交易參考，不構成投資建議）</p>
+      <h1>📈 今日交易建議</h1>
+      <p class="subtitle">股票 / 黃金 / 原油 / 外匯 / 加密貨幣，自動幫你看盤，用白話文告訴你現在該買、該賣、還是先觀望</p>
       <div class="meta-row">
         <span id="generated-at" class="pill">載入中...</span>
-        <span id="fear-greed" class="pill">Fear &amp; Greed: --</span>
+        <span id="fear-greed" class="pill">市場情緒：--</span>
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
       </div>
     </div>
@@ -22,93 +22,91 @@
 
   <main class="container">
     <section class="disclaimer">
-      ⚠️ 本系統為量化研究框架的展示，訊號由規則式策略與機率模型自動產生，<b>目前僅連接紙上交易（Paper Trading），不會下真實訂單</b>。
-      任何策略都可能失效，市場有虧損真實本金的風險，請務必自行判斷並做好風險管理。
+      ⚠️ 這是自動化程式產生的參考訊號，<b>目前只是模擬、不會幫你真的下單買賣</b>。任何建議都可能出錯，投資一定有虧錢的風險，實際買賣請自己再判斷一次。
     </section>
 
     <section class="panel live-panel">
-      <h2>即時價格 Live Price <span class="footnote">（僅加密貨幣為真正即時，透過 Binance WebSocket 免費取得；股票/黃金/外匯無免費即時資料源，改用下方每 15 分鐘更新一次的訊號資料）</span></h2>
+      <h2>💰 即時價格（比特幣 / 以太幣）</h2>
       <div id="live-crypto" class="live-price-row"></div>
     </section>
 
     <section class="cards" id="summary-cards"></section>
 
     <section class="panel">
-      <h2>即時訊號 Signals</h2>
-      <div class="table-wrap">
-        <table id="signals-table">
-          <thead>
-            <tr>
-              <th>Symbol</th><th>資產類別</th><th>價格</th><th>訊號</th><th>信心度</th>
-              <th>市場狀態</th><th>停損</th><th>停利</th><th>多代理決策</th><th>細節</th>
-            </tr>
-          </thead>
-          <tbody id="signals-body">
-            <tr><td colspan="10">尚未產生訊號，請稍候自動更新或按上方「重新整理」。</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="footnote">「多代理決策」欄：技術面 Agent（策略投票）+ 總經 Agent（FRED/Fear&amp;Greed）+ 風控 Agent 三方綜合意見；風控 Agent 一旦觸發停損限額或最大回撤熔斷，會直接否決（Veto）該標的的進場，無論技術面多強烈都會被蓋成 HOLD。</p>
-    </section>
-
-    <section class="panel">
-      <h2>統計套利 Pairs Trading</h2>
-      <div class="table-wrap">
-        <table id="pairs-table">
-          <thead>
-            <tr>
-              <th>標的 A</th><th>標的 B</th><th>共整合檢定</th><th>p-value</th>
-              <th>價差 Z-score</th><th>避險比率</th><th>A 動作</th><th>B 動作</th><th>說明</th>
-            </tr>
-          </thead>
-          <tbody id="pairs-body"><tr><td colspan="9">尚無資料</td></tr></tbody>
-        </table>
-      </div>
-      <p class="footnote">每次執行都會重新做 Engle-Granger 共整合檢定（p &lt; 0.05 才視為共整合），只有目前真的通過檢定的配對才會產生交易訊號，避免把不具統計基礎的價差當套利機會。</p>
-    </section>
-
-    <section class="panel">
-      <h2>策略回測快照 Strategy Backtest Snapshot</h2>
-      <div class="table-wrap">
-        <table id="backtest-table">
-          <thead>
-            <tr>
-              <th>Symbol</th><th>策略</th><th>總報酬</th><th>年化報酬 CAGR</th><th>Sharpe</th>
-              <th>Sortino</th><th>最大回撤 MDD</th><th>勝率</th><th>交易次數</th>
-            </tr>
-          </thead>
-          <tbody id="backtest-body"><tr><td colspan="9">-</td></tr></tbody>
-        </table>
+      <h2>📋 今日建議清單</h2>
+      <div id="simple-signals" class="pick-grid">
+        <p class="footnote">尚未產生建議，請稍候自動更新，或按上方「重新整理」。</p>
       </div>
     </section>
 
     <section class="panel">
-      <h2>歷史訊號分佈 Signal History</h2>
+      <h2>📈 近期訊號走勢</h2>
       <canvas id="history-chart" height="90"></canvas>
+      <p class="footnote">這張圖顯示過去每次更新時，系統建議「買進」和「賣出」的標的數量變化。</p>
     </section>
 
-    <section class="panel">
-      <h2>系統架構 Architecture</h2>
-      <ul class="arch-list">
-        <li><b>資料層</b>：yfinance（股票/ETF/黃金/白銀/原油/外匯）+ ccxt（加密貨幣 OHLCV / Funding Rate / Open Interest）+ FRED（總經數據，選用）+ Fear&amp;Greed Index</li>
-        <li><b>特徵工程</b>：EMA/SMA/MACD/ADX/RSI/ATR/布林通道/Keltner/Donchian/Ichimoku/SuperTrend/PSAR/OBV/MFI/CCI/Stochastic/樞紐點/VWAP 等 20+ 技術指標，加上市場結構（BOS/CHoCH/FVG/Order Block/流動性掃蕩）、多週期趨勢一致性、時間特徵、滯後與滾動統計，共可擴充至數百個特徵</li>
-        <li><b>市場狀態偵測</b>：自動判斷牛市 / 熊市 / 盤整 / 高波動 / 低波動並動態調整策略權重</li>
-        <li><b>策略引擎</b>：趨勢跟隨、均值回歸、突破、動量四種規則式策略 + XGBoost/LightGBM/RandomForest 投票集成模型 + 統計套利（共整合 + Kalman Filter 動態避險比率配對交易），依市場狀態加權投票產出最終 BUY/SELL/HOLD 訊號</li>
-        <li><b>Meta-Labeling</b>：Triple-Barrier 方法（停利/停損/時間三重障礙）標記真實交易結果，訓練二階模型過濾低品質訊號，而非單純用「N 根K棒後漲跌」當標籤</li>
-        <li><b>多代理決策系統</b>：技術面 Agent、總經 Agent、風控 Agent 各自產出意見，由 Decision Engine 加權彙整成最終決策；風控 Agent 具否決權，觸發風險限額時直接蓋成 HOLD</li>
-        <li><b>風險管理</b>：Kelly Criterion、固定比例、ATR 動態部位、追蹤停損、VaR/CVaR、Portfolio 層級 VaR、相關性限額、產業/資產類別曝險限額、每日/週/月虧損上限、真正的風險平價（Risk Parity）、最大回撤熔斷、破產風險估算</li>
-        <li><b>回測系統</b>：向量化回測、Walk-Forward 驗證、Monte Carlo 模擬，含手續費/滑價成本；績效指標涵蓋 Sharpe/Sortino/Calmar/MAR/Omega/SQN/Alpha/Beta/Information Ratio/Rolling Sharpe 等</li>
-        <li><b>執行引擎（模擬）</b>：Bracket/OCO/追蹤停損模擬撮合、TWAP/VWAP/POV 拆單演算法與滑價評估</li>
-        <li><b>MLOps</b>：本地模型版本註冊表、Champion/Challenger 比較、PSI/KS 檢定資料飄移偵測</li>
-        <li><b>執行層</b>：預設僅 Paper Trading 模擬撮合；Alpaca / Binance / Bybit / OKX / Coinbase（透過 ccxt）/ Interactive Brokers 實盤介面已預留，需自行設定 API 金鑰才會啟用</li>
-        <li><b>自動化</b>：GitHub Actions 每日排程重新抓資料、計算訊號、更新本頁面</li>
-      </ul>
-      <p class="footnote">原始碼： <code>src/</code> 目錄，模組化拆分為 data / features / models / strategies / regime / risk / backtest / portfolio / broker / alerts / pipeline / api / agents / execution / mlops。</p>
-    </section>
+    <details class="panel advanced-panel">
+      <summary>🔧 進階資料（給想深入研究的人看，一般不用點開）</summary>
+
+      <div class="advanced-inner">
+        <h3>統計套利 Pairs Trading</h3>
+        <div class="table-wrap">
+          <table id="pairs-table">
+            <thead>
+              <tr>
+                <th>標的 A</th><th>標的 B</th><th>共整合檢定</th><th>p-value</th>
+                <th>價差 Z-score</th><th>避險比率</th><th>A 動作</th><th>B 動作</th><th>說明</th>
+              </tr>
+            </thead>
+            <tbody id="pairs-body"><tr><td colspan="9">尚無資料</td></tr></tbody>
+          </table>
+        </div>
+
+        <h3>每檔標的完整訊號與策略投票</h3>
+        <div class="table-wrap">
+          <table id="signals-table">
+            <thead>
+              <tr>
+                <th>Symbol</th><th>資產類別</th><th>價格</th><th>訊號</th><th>信心度</th>
+                <th>市場狀態</th><th>停損</th><th>停利</th><th>多代理決策</th><th>細節</th>
+              </tr>
+            </thead>
+            <tbody id="signals-body">
+              <tr><td colspan="10">尚無資料</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>策略回測快照</h3>
+        <div class="table-wrap">
+          <table id="backtest-table">
+            <thead>
+              <tr>
+                <th>Symbol</th><th>策略</th><th>總報酬</th><th>年化報酬 CAGR</th><th>Sharpe</th>
+                <th>Sortino</th><th>最大回撤 MDD</th><th>勝率</th><th>交易次數</th>
+              </tr>
+            </thead>
+            <tbody id="backtest-body"><tr><td colspan="9">-</td></tr></tbody>
+          </table>
+        </div>
+
+        <h3>系統架構</h3>
+        <ul class="arch-list">
+          <li><b>資料層</b>：yfinance（股票/ETF/黃金/白銀/原油/外匯）+ ccxt（加密貨幣）+ FRED（總經數據，選用）+ Fear&amp;Greed Index</li>
+          <li><b>特徵工程</b>：20+ 技術指標 + 市場結構分析 + 多週期趨勢，可擴充至數百個特徵</li>
+          <li><b>策略引擎</b>：趨勢跟隨、均值回歸、突破、動量、統計套利（配對交易）+ ML 集成模型</li>
+          <li><b>多代理決策系統</b>：技術面 / 總經 / 風控 Agent 各自表態，風控 Agent 可直接否決進場</li>
+          <li><b>風險管理</b>：Kelly Criterion、VaR/CVaR、風險平價、每日/週/月虧損上限、最大回撤熔斷</li>
+          <li><b>回測系統</b>：向量化回測、Walk-Forward、Monte Carlo，20+ 績效指標</li>
+          <li><b>執行層</b>：預設 Paper Trading 模擬；Alpaca / 多交易所 / IBKR 實盤介面已預留但預設關閉</li>
+        </ul>
+        <p class="footnote">原始碼：<code>src/</code> 目錄，模組化拆分為 data / features / models / strategies / regime / risk / backtest / portfolio / broker / alerts / pipeline / api / agents / execution / mlops。</p>
+      </div>
+    </details>
   </main>
 
   <footer class="footer">
-    <p>Professional Quant Trading System · 僅供教育與研究用途 · 過去績效不代表未來表現 · 不保證獲利</p>
+    <p>量化訊號小幫手 · 僅供教育與研究用途 · 過去績效不代表未來表現 · 不保證獲利</p>
   </footer>
 
   <script src="assets/app.js"></script>

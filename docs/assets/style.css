@@ -90,6 +90,38 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .live-up { color: var(--green); }
 .live-down { color: var(--red); }
 
+/* ------------------------------------------------------------- pick cards --- */
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 6px; }
+.pick-card {
+  background: #0f1524; border: 1px solid var(--border); border-left: 4px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.badge-buy-card { border-left-color: var(--green); }
+.badge-sell-card { border-left-color: var(--red); }
+.badge-hold-card { border-left-color: var(--yellow); }
+
+.pick-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.pick-name { font-size: 17px; font-weight: 700; }
+.pick-symbol { color: var(--muted); font-size: 12.5px; font-weight: 400; margin-left: 4px; }
+.pick-action { font-size: 14px; padding: 5px 14px; }
+
+.pick-price { font-size: 15px; }
+.pick-levels { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.pick-confidence { font-size: 13px; color: var(--muted); }
+.pick-reason { font-size: 13.5px; line-height: 1.55; padding-top: 4px; border-top: 1px dashed var(--border); }
+
+/* ---------------------------------------------------------- advanced panel --- */
+.advanced-panel summary {
+  cursor: pointer; font-weight: 700; font-size: 15px; padding: 4px 0;
+  list-style: none;
+}
+.advanced-panel summary::-webkit-details-marker { display: none; }
+.advanced-panel summary::before { content: "▸ "; color: var(--accent); }
+.advanced-panel[open] summary::before { content: "▾ "; }
+.advanced-panel .advanced-inner { margin-top: 16px; }
+.advanced-panel h3 { font-size: 14.5px; color: var(--muted); margin: 24px 0 10px; }
+.advanced-panel h3:first-child { margin-top: 4px; }
+
 /* ---------------------------------------------------------------- mobile ---
    Below ~700px (covers all current iPhone widths in portrait) every data
    table switches from a horizontally-scrolling grid to a stacked list of
@@ -136,4 +168,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
   table td.reasons { display: block; text-align: left; }
   table td.reasons::before { content: attr(data-label) "："; display: block; margin-bottom: 4px; }
+
+  .pick-grid { grid-template-columns: 1fr; }
+  .pick-name { font-size: 16px; }
 }
