@@ -34,9 +34,18 @@
     <section class="cards" id="summary-cards"></section>
 
     <section class="panel">
-      <h2>📋 今日建議清單</h2>
-      <div id="simple-signals" class="skeleton-grid">
+      <h2>🇹🇼 台股焦點（主要）</h2>
+      <div id="simple-signals-tw" class="skeleton-grid">
         <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🌐 其他市場（輔助參考）</h2>
+      <p class="footnote">美股 / ETF / 黃金原油 / 外匯 / 加密貨幣，作為台股以外的輔助觀察標的</p>
+      <div id="simple-signals-other" class="skeleton-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
       </div>
@@ -45,7 +54,7 @@
     <section class="panel">
       <h2>📈 近期訊號走勢</h2>
       <canvas id="history-chart" height="90"></canvas>
-      <p class="footnote">這張圖顯示過去每次更新時，系統建議「買進」和「賣出」的標的數量變化。</p>
+      <p class="footnote">這張圖顯示過去每次更新時，系統建議「做多」和「做空」的標的數量變化。</p>
     </section>
 
     <details class="panel advanced-panel">

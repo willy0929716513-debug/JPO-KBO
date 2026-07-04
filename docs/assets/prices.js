@@ -5,13 +5,14 @@ const HISTORY_URL = "data/history.json";
 const PRICES_REFRESH_MS = 60_000;
 
 const GROUPS = [
-  { key: "stocks", classes: ["equity", "etf", "taiwan"] },
+  { key: "taiwan", classes: ["taiwan"] },
+  { key: "stocks", classes: ["equity", "etf"] },
   { key: "futures", classes: ["metal", "energy"] },
   { key: "forex", classes: ["forex"] },
 ];
 
 function groupSignals(signals) {
-  const groups = { stocks: [], futures: [], forex: [] };
+  const groups = { taiwan: [], stocks: [], futures: [], forex: [] };
   signals.forEach((s) => {
     const group = GROUPS.find((g) => g.classes.includes(s.asset_class));
     if (group) groups[group.key].push(s);
@@ -86,6 +87,7 @@ async function loadPrices() {
     renderFearGreed("fear-greed", payload.market_sentiment?.crypto_fear_greed);
 
     const groups = groupSignals(payload.signals || []);
+    renderGroup("group-taiwan", groups.taiwan, history);
     renderGroup("group-stocks", groups.stocks, history);
     renderGroup("group-futures", groups.futures, history);
     renderGroup("group-forex", groups.forex, history);
