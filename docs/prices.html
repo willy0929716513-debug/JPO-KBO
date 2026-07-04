@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>即時價格總覽｜量化訊號小幫手</title>
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>💹 即時價格總覽</h1>
+      <p class="subtitle">依股票 / 期貨商品 / 外匯 / 加密貨幣分類，一次看完所有你關心的標的價格</p>
+      <div class="meta-row">
+        <span id="generated-at" class="pill">載入中...</span>
+        <span id="fear-greed" class="pill">市場情緒：--</span>
+        <button id="refresh-btn" class="pill pill-btn">重新整理</button>
+        <a href="index.html" class="pill">← 回今日建議</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="disclaimer">
+      ⚠️ 只有加密貨幣是真正逐筆即時報價；股票/期貨/外匯免費資料源沒有即時逐筆報價，改為開盤時段每 5 分鐘更新一次，收盤時段會顯示「已收盤」並沿用最後一筆資料。
+    </section>
+
+    <section class="panel live-panel">
+      <h2>🪙 加密貨幣（真正即時）<span id="live-status" class="pulse-dot" style="display:none" title="即時連線中"></span></h2>
+      <div id="live-crypto" class="live-price-row"></div>
+    </section>
+
+    <section class="panel">
+      <h2>📈 股票 / ETF</h2>
+      <div id="group-stocks" class="price-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🛢️ 期貨 / 商品</h2>
+      <div id="group-futures" class="price-grid">
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>💱 外匯</h2>
+      <div id="group-forex" class="price-grid">
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>量化訊號小幫手 · 僅供教育與研究用途 · 過去績效不代表未來表現 · 不保證獲利</p>
+  </footer>
+
+  <script src="assets/common.js"></script>
+  <script src="assets/prices.js"></script>
+</body>
+</html>

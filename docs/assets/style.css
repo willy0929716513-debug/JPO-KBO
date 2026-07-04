@@ -188,6 +188,22 @@ tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .confidence-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
 .confidence-dots span.filled { background: var(--accent); }
 
+/* --------------------------------------------------------- price overview --- */
+.price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 4px; }
+.price-card {
+  background: var(--panel-solid); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow-card); transition: transform 0.15s ease;
+}
+.price-card:hover { transform: translateY(-2px); }
+.price-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+.price-card-value { font-size: 18px; font-weight: 800; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.price-card-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.market-status { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.market-open { color: var(--green); }
+.market-closed { color: var(--muted-dim); }
+
 .pick-reason { font-size: 13px; line-height: 1.55; padding-top: 5px; border-top: 1px dashed var(--border); color: #cfd5e6; }
 
 /* ------------------------------------------------------------ skeletons --- */
@@ -278,7 +294,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.025); }
   table td.reasons { display: block; text-align: left; }
   table td.reasons::before { content: attr(data-label) "："; display: block; margin-bottom: 4px; }
 
-  .pick-grid, .skeleton-grid { grid-template-columns: 1fr; }
+  .pick-grid, .skeleton-grid, .price-grid { grid-template-columns: 1fr; }
   .pick-name { font-size: 16px; }
 }
 

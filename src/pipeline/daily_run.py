@@ -23,6 +23,7 @@ import pandas as pd
 from src.agents import AgentContext, DecisionEngine, MacroAgent, RiskAgent, TechnicalAgent
 from src.backtest.engine import BacktestEngine
 from src.config import DOCS_DATA_DIR, settings
+from src.data.market_hours import is_market_open
 from src.data.providers.ccxt_provider import CCXTProvider
 from src.data.providers.macro_provider import MacroProvider
 from src.data.providers.sentiment_provider import SentimentProvider
@@ -157,6 +158,16 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     }
 
 
+def _load_previous_payload() -> dict:
+    path = DOCS_DATA_DIR / "signals_latest.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return {}
+
+
 def _analyze_pairs(price_cache: dict[str, pd.Series]) -> list[dict]:
     results = []
     strategy = PairsTradingStrategy()
@@ -177,24 +188,45 @@ def run_daily_pipeline() -> dict:
     errors = []
     price_cache: dict[str, pd.Series] = {}
 
+    # Carry-forward source for symbols whose market is currently closed --
+    # running every 5 minutes around the clock only makes sense if closed
+    # markets are skipped rather than uselessly re-analyzed against data
+    # that hasn't changed since the last close.
+    previous_payload = _load_previous_payload()
+    previous_by_symbol = {s["symbol"]: s for s in previous_payload.get("signals", [])}
+    previous_pairs_by_key = {(p["symbol_a"], p["symbol_b"]): p for p in previous_payload.get("pairs_signals", [])}
+
     sentiment = SentimentProvider().get_crypto_fear_greed()
     sentiment_snapshot = {"crypto_fear_greed": sentiment}
     macro_snapshot = MacroProvider().get_dxy_and_yields_snapshot()  # returns all-None values if FRED_API_KEY unset
 
     for asset_class, symbols in WATCHLIST.items():
         for symbol in symbols:
+            if not is_market_open(asset_class):
+                carried = previous_by_symbol.get(symbol)
+                if carried:
+                    results.append({**carried, "market_open": False})
+                    continue
+                # No prior data yet (e.g. very first run) -- fall through and
+                # analyze once anyway so the dashboard isn't empty for this
+                # symbol until its market happens to be open.
             try:
                 df = _load_ohlcv(symbol, asset_class)
                 if not df.empty:
                     price_cache[symbol] = df["close"]
                 res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot)
                 if res:
+                    res["market_open"] = True
                     results.append(res)
             except Exception as exc:
                 logger.error("Failed analyzing %s: %s", symbol, exc)
                 errors.append({"symbol": symbol, "error": str(exc), "trace": traceback.format_exc(limit=3)})
 
-    pairs_signals = _analyze_pairs(price_cache)
+    fresh_pairs = _analyze_pairs(price_cache)
+    fresh_pairs_keys = {(p["symbol_a"], p["symbol_b"]) for p in fresh_pairs}
+    pairs_signals = fresh_pairs + [
+        p for key, p in previous_pairs_by_key.items() if key not in fresh_pairs_keys
+    ]
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
