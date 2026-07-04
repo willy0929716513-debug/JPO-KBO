@@ -1,18 +1,28 @@
 name: Update Trading Signals
 
+# Runs every 5 minutes, around the clock -- GitHub Actions' shortest
+# supported schedule interval. This used to be a narrow "US market hours"
+# window, which completely missed e.g. Taiwan's trading session. Now the
+# pipeline itself (src/data/market_hours.py) checks per-symbol whether that
+# symbol's market is actually open and skips/carries-forward the ones that
+# aren't, so running this frequently and continuously is cheap: closed
+# markets are never re-analyzed, only re-tagged.
 on:
   schedule:
-    - cron: "*/15 13-20 * * 1-5"   # every 15 min during ~US market hours (13:00-20:59 UTC), Mon-Fri
-    - cron: "30 21 * * 1-5"        # 21:30 UTC = final snapshot after US market close, Mon-Fri
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
+concurrency:
+  group: update-signals
+  cancel-in-progress: false  # queue overlapping runs rather than cancel one mid-write
+
 jobs:
   update-signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -38,4 +48,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/data/
           git diff --cached --quiet && echo "No changes to commit" || git commit -m "chore: update trading signals [skip ci]"
+          git pull --rebase origin main
           git push

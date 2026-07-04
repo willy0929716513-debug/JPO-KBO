@@ -34,7 +34,7 @@ src/
 └── api/           # 選用的本地 FastAPI 服務，讀取/觸發 pipeline
 
 docs/               # GitHub Pages 靜態儀表板（純 HTML/CSS/JS + Chart.js，讀取 docs/data/*.json）
-tests/              # pytest 單元測試（95 個測試，涵蓋以上每個模組）
+tests/              # pytest 單元測試（108 個測試，涵蓋以上每個模組）
 scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 .github/workflows/  # 每日排程更新訊號 (update_signals.yml) + CI 測試 (ci.yml)
 ```
@@ -95,15 +95,23 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
 
 用法：`from src.broker import get_broker; broker = get_broker("live", asset_class="crypto")` 會依資產類別自動選對應的介面；沒對應金鑰時會拋出清楚的錯誤訊息而不是靜默失敗。目前 `daily_run.py` pipeline 本身**不會呼叫這些介面下單**，只負責產生訊號——要接自動下單，需要你自行在 pipeline 或另一支腳本中，讀取 `CombinedSignal` 後呼叫 `broker.submit_order(...)`，並強烈建議先在 Paper Trading / 測試網跑過一段時間再考慮接真實資金。
 
-## 價格更新頻率（誠實說明「即時」能做到什麼程度）
+## 價格更新頻率與市場開盤偵測（誠實說明「即時」能做到什麼程度）
 
 - **加密貨幣（BTC/USDT、ETH/USDT）**：儀表板頂部「即時價格」面板透過瀏覽器直接連線 Binance 的公開
   WebSocket（`wss://stream.binance.com`），**真正逐筆即時更新**，不需要任何金鑰，也不經過 GitHub Actions。
 - **股票 / 黃金 / 白銀 / 原油 / 外匯**：免費資料源（Yahoo Finance）沒有提供真正的即時逐筆報價（本身就有
-  15-20 分鐘延遲），且瀏覽器無法直接跨網域請求 Yahoo 的 API（會被 CORS 政策擋掉）。這些標的的價格改為
-  透過 `.github/workflows/update_signals.yml`：**美股交易時段內（13:00-20:59 UTC）每 15 分鐘自動更新一次**，
-  收盤後再跑一次最終快照，儀表板本身也會每 60 秒自動重新讀取一次最新資料（不用手動按重新整理）。
-  要做到真正逐秒即時，需要付費資料源（見上方「未實作」表格）。
+  15-20 分鐘延遲），且瀏覽器無法直接跨網域請求 Yahoo 的 API（會被 CORS 政策擋掉）。這些標的改為
+  透過 `.github/workflows/update_signals.yml`**每 5 分鐘自動跑一次**（GitHub Actions 排程支援的最短間隔），
+  儀表板本身也每 60 秒自動重新讀取一次最新資料（不用手動按重新整理）。要做到真正逐秒即時，需要付費資料源
+  （見上方「未實作」表格）。
+- **市場開盤偵測** `src/data/market_hours.py`：每 5 分鐘跑一次不代表每次都重新分析全部標的——`is_market_open()`
+  會依資產類別判斷該市場現在是否開盤中（美股 NYSE 時段、台股 TWSE 時段、外匯/期貨近 24 小時週間交易、加密貨幣全年無休），
+  收盤中的標的直接沿用上一筆資料（`daily_run.py` 會從上次的 `signals_latest.json` 帶入），不重新抓資料也不重新跑策略，
+  只有真正開盤的標的才會重新分析。每筆訊號都會附上 `market_open` 欄位，儀表板上顯示「🟢 開盤中」或「⚪ 已收盤」。
+  （此判斷只看每週固定交易時段，未涵蓋國定假日休市，假日會被誤判為開盤，但頂多是多做一次無意義的重複分析，不會產生錯誤資料。）
+- **即時價格總覽頁** `docs/prices.html`：另開一頁，把所有追蹤的標的依「股票/ETF」「期貨/商品」「外匯」「加密貨幣」分類顯示，
+  加密貨幣一樣是真正即時 WebSocket，其他類別顯示最新價格、漲跌幅（跟上一次更新比較）、開盤狀態徽章。從主頁右上角
+  「💹 即時價格總覽」可以連過去。
 
 ## 快速開始
 
@@ -137,7 +145,7 @@ cd docs && python -m http.server 8000   # 開瀏覽器打開 http://localhost:80
 
 | 類別 | 狀態 |
 |---|---|
-| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、統計套利、ML 集成、Meta-Labeling、回測 (含 Walk-Forward / Monte Carlo)、20+ 績效指標、完整風控引擎、風險平價、模擬執行引擎、輕量 MLOps、多代理決策系統、Paper Trading、多交易所/IBKR 實盤介面、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試（95 個 pytest） |
+| 免金鑰即可用：股票/ETF/黃金/白銀/原油/外匯/加密貨幣 OHLCV、20+ 技術指標、市場結構、多週期趨勢、市場狀態偵測、規則式策略、統計套利、ML 集成、Meta-Labeling、回測 (含 Walk-Forward / Monte Carlo)、20+ 績效指標、完整風控引擎、風險平價、模擬執行引擎、輕量 MLOps、多代理決策系統、Paper Trading、多交易所/IBKR 實盤介面、GitHub Actions 自動化、Pages 儀表板 | ✅ 已完整實作並通過測試（108 個 pytest） |
 | 需要你自己申請免費/付費金鑰才會啟用：FRED 總經數據、Discord/Telegram/Email 通知、Alpaca/交易所/IBKR 實盤下單 | 🔌 介面已預留，程式碼會在沒有金鑰時安全跳過，不會報錯中斷 |
 | 規格中提及但本次未實作（需要付費機構級資料源或專屬伺服器叢集，架構上盡量預留了擴充點）：Tick Data / Level 2 Order Book / Dark Pool / 13F / Options Greeks / IV Surface / 衛星氣象航運等另類資料、真正的強化學習交易代理、市場微結構偵測（Footprint/Spoofing/Iceberg Detection，依賴 Tick/L2 資料）、Kubernetes/Airflow/Celery/ClickHouse/TimescaleDB 級基礎設施 | ⏳ 未實作 -- 原因與替代方案見上方模組說明 |
 
