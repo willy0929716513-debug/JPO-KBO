@@ -41,11 +41,28 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 # Curated default watchlist across every asset class the prompt asked for.
-# Kept small enough to run comfortably inside a GitHub Actions job.
+# Taiwan large-caps are the primary focus (listed first, and the widest
+# single-market list) per user request; everything else is kept as a
+# smaller supporting watchlist. Still kept small enough to run comfortably
+# inside a GitHub Actions job on a 5-minute cron.
 WATCHLIST = {
+    "taiwan": [
+        "2330.TW",  # 台積電
+        "2317.TW",  # 鴻海
+        "2454.TW",  # 聯發科
+        "2308.TW",  # 台達電
+        "2382.TW",  # 廣達
+        "2303.TW",  # 聯電
+        "2881.TW",  # 富邦金
+        "2882.TW",  # 國泰金
+        "2412.TW",  # 中華電
+        "1301.TW",  # 台塑
+        "2603.TW",  # 長榮
+        "3711.TW",  # 日月光投控
+        "0050.TW",  # 元大台灣50
+    ],
     "equity": ["AAPL", "MSFT", "NVDA", "TSLA"],
     "etf": ["SPY", "QQQ"],
-    "taiwan": ["2330.TW"],
     "metal": ["GC=F", "SI=F"],
     "energy": ["CL=F"],
     "forex": ["EURUSD=X"],

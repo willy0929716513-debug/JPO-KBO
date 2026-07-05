@@ -6,11 +6,19 @@
 
 const SYMBOL_NAMES = {
   AAPL: "蘋果", MSFT: "微軟", NVDA: "輝達", TSLA: "特斯拉",
-  SPY: "標普500 ETF", QQQ: "那斯達克100 ETF", "2330.TW": "台積電",
+  SPY: "標普500 ETF", QQQ: "那斯達克100 ETF",
+  "2330.TW": "台積電", "2317.TW": "鴻海", "2454.TW": "聯發科",
+  "2308.TW": "台達電", "2382.TW": "廣達", "2303.TW": "聯電",
+  "2881.TW": "富邦金", "2882.TW": "國泰金", "2412.TW": "中華電",
+  "1301.TW": "台塑", "2603.TW": "長榮", "3711.TW": "日月光投控",
+  "0050.TW": "元大台灣50",
   "GC=F": "黃金", "SI=F": "白銀", "CL=F": "原油", "EURUSD=X": "歐元/美元",
   "BTC/USDT": "比特幣", "ETH/USDT": "以太幣",
 };
-const ACTION_ZH = { BUY: "買進", SELL: "賣出", HOLD: "觀望" };
+// 做多 = go long (buy to profit from a rise), 做空 = go short (sell/borrow
+// to profit from a fall) -- matches how the user actually trades, rather
+// than a plain spot buy/sell framing.
+const ACTION_ZH = { BUY: "做多", SELL: "做空", HOLD: "觀望" };
 const REGIME_ZH = {
   bull_trend: "上漲趨勢", bear_trend: "下跌趨勢", range_bound: "區間盤整",
   high_volatility: "波動較大", low_volatility: "走勢平穩", unknown: "資料不足",

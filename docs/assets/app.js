@@ -12,8 +12,8 @@ function buildPlainReason(s) {
   }
   const action = s.signal.final_action;
   const regimeText = REGIME_ZH[s.regime.state] || "資料不足";
-  if (action === "BUY") return `目前${regimeText}，多項技術指標偏多，可考慮找機會分批買進`;
-  if (action === "SELL") return `目前${regimeText}，多項技術指標偏空，可考慮減碼或先賣出`;
+  if (action === "BUY") return `目前${regimeText}，多項技術指標偏多，可考慮找機會分批做多`;
+  if (action === "SELL") return `目前${regimeText}，多項技術指標偏空，可考慮找機會分批做空`;
   return `目前${regimeText}，訊號不夠明確，建議先觀望，不用急著進場`;
 }
 
@@ -23,8 +23,8 @@ function renderSummary(payload) {
 
   const cards = [
     { label: "分析標的數", value: `${payload.successful} / ${payload.watchlist_size}` },
-    { label: "建議買進", value: counts.BUY },
-    { label: "建議賣出", value: counts.SELL },
+    { label: "建議做多", value: counts.BUY },
+    { label: "建議做空", value: counts.SELL },
     { label: "建議觀望", value: counts.HOLD },
   ];
 
@@ -33,10 +33,13 @@ function renderSummary(payload) {
     .join("");
 }
 
-function renderSimpleSignals(payload) {
-  const container = document.getElementById("simple-signals");
+// Renders one group of pick-cards into containerId. Shared by the primary
+// Taiwan-focus section and the smaller auxiliary section for every other
+// market, so both look and sort identically.
+function renderPickCards(containerId, signals) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   container.className = "pick-grid";
-  const signals = payload.signals || [];
   if (signals.length === 0) {
     container.innerHTML = `<p class="footnote">尚無資料</p>`;
     return;
@@ -71,6 +74,17 @@ function renderSimpleSignals(payload) {
       <div class="pick-reason">${buildPlainReason(s)}</div>
     </div>`;
   }).join("");
+}
+
+// Taiwan stocks are the user's primary focus, so they get their own
+// prominent section; every other market (US equity/ETF, gold/oil, forex,
+// crypto) is grouped underneath as a smaller supporting/auxiliary section.
+function renderSimpleSignals(payload) {
+  const signals = payload.signals || [];
+  const taiwanSignals = signals.filter((s) => s.asset_class === "taiwan");
+  const otherSignals = signals.filter((s) => s.asset_class !== "taiwan");
+  renderPickCards("simple-signals-tw", taiwanSignals);
+  renderPickCards("simple-signals-other", otherSignals);
 }
 
 function renderDecisionBadge(decision) {
@@ -159,8 +173,8 @@ function renderHistory(history) {
     data: {
       labels,
       datasets: [
-        { label: "BUY", data: buyCounts, borderColor: "#22c55e", backgroundColor: "#22c55e33", tension: 0.3 },
-        { label: "SELL", data: sellCounts, borderColor: "#ef4444", backgroundColor: "#ef444433", tension: 0.3 },
+        { label: "做多", data: buyCounts, borderColor: "#22c55e", backgroundColor: "#22c55e33", tension: 0.3 },
+        { label: "做空", data: sellCounts, borderColor: "#ef4444", backgroundColor: "#ef444433", tension: 0.3 },
       ],
     },
     options: {
