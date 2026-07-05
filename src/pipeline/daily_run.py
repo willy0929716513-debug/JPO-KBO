@@ -277,21 +277,24 @@ def run_daily_pipeline() -> dict:
 
     for asset_class, symbols in WATCHLIST.items():
         for symbol in symbols:
-            if not is_market_open(asset_class):
+            market_open = is_market_open(asset_class)
+            if not market_open:
                 carried = previous_by_symbol.get(symbol)
                 if carried:
                     results.append({**carried, "market_open": False})
                     continue
-                # No prior data yet (e.g. very first run) -- fall through and
-                # analyze once anyway so the dashboard isn't empty for this
-                # symbol until its market happens to be open.
+                # No prior data yet (e.g. a symbol just added to the
+                # watchlist) -- fall through and analyze once anyway so the
+                # dashboard isn't empty for it, but market_open below still
+                # honestly reflects that the market is actually closed right
+                # now; being freshly analyzed doesn't make it "open".
             try:
                 df = _load_ohlcv(symbol, asset_class)
                 if not df.empty:
                     price_cache[symbol] = df["close"]
                 res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot)
                 if res:
-                    res["market_open"] = True
+                    res["market_open"] = market_open
                     results.append(res)
             except Exception as exc:
                 logger.error("Failed analyzing %s: %s", symbol, exc)
