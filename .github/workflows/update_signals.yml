@@ -22,7 +22,7 @@ concurrency:
 jobs:
   update-signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15  # watchlist grew to ~60 symbols (48 Taiwan large-caps + others); more headroom than the original 8
     steps:
       - uses: actions/checkout@v4
 

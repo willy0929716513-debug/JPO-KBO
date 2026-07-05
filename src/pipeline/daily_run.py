@@ -60,6 +60,41 @@ WATCHLIST = {
         "2603.TW",  # 長榮
         "3711.TW",  # 日月光投控
         "0050.TW",  # 元大台灣50
+        "2002.TW",  # 中鋼
+        "1216.TW",  # 統一
+        "2886.TW",  # 兆豐金
+        "2891.TW",  # 中信金
+        "2892.TW",  # 第一金
+        "2884.TW",  # 玉山金
+        "2885.TW",  # 元大金
+        "2880.TW",  # 華南金
+        "5880.TW",  # 合庫金
+        "2887.TW",  # 台新金
+        "2890.TW",  # 永豐金
+        "1101.TW",  # 台泥
+        "1303.TW",  # 南亞
+        "1326.TW",  # 台化
+        "2379.TW",  # 瑞昱
+        "2357.TW",  # 華碩
+        "2353.TW",  # 宏碁
+        "2408.TW",  # 南亞科
+        "2609.TW",  # 陽明
+        "2615.TW",  # 萬海
+        "3034.TW",  # 聯詠
+        "3037.TW",  # 欣興
+        "3045.TW",  # 台灣大
+        "4904.TW",  # 遠傳
+        "2207.TW",  # 和泰車
+        "9910.TW",  # 豐泰
+        "6505.TW",  # 台塑化
+        "2395.TW",  # 研華
+        "3008.TW",  # 大立光
+        "2409.TW",  # 友達
+        "3231.TW",  # 緯創
+        "2324.TW",  # 仁寶
+        "2327.TW",  # 國巨
+        "5871.TW",  # 中租-KY
+        "2377.TW",  # 微星
     ],
     "equity": ["AAPL", "MSFT", "NVDA", "TSLA"],
     "etf": ["SPY", "QQQ"],
@@ -104,6 +139,28 @@ def _json_safe(obj):
     if isinstance(obj, (list, tuple)):
         return [_json_safe(v) for v in obj]
     return obj
+
+
+def _extract_indicators(features: pd.DataFrame) -> dict:
+    """Pulls a small, human-readable subset of the 300+ engineered features
+    (RSI/MACD/moving averages/volume/ATR) for display on the dashboard's
+    "詳細" card view -- the full feature matrix stays internal to the
+    strategy/backtest layer.
+    """
+    last = features.iloc[-1]
+
+    def g(col: str, digits: int = 2):
+        val = last[col] if col in features.columns else float("nan")
+        return round(float(val), digits)
+
+    return {
+        "rsi_14": g("rsi_14", 1),
+        "macd_hist": g("macd_hist", 4),
+        "sma_20": g("sma_20", 4),
+        "sma_50": g("sma_50", 4),
+        "volume_ratio": g("volume_ratio", 2),
+        "atr_pct": round(g("atr_pct", 6) * 100, 2),
+    }
 
 
 def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snapshot: dict,
@@ -172,6 +229,7 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
         "risk_status": risk_status,
         "backtest": backtest_snapshot,
         "feature_count": FeaturePipeline.feature_count(features),
+        "indicators": _extract_indicators(features),
     }
 
 

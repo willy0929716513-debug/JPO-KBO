@@ -17,6 +17,7 @@
         <span id="fear-greed" class="pill">市場情緒：--</span>
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
         <a href="prices.html" class="pill">💹 即時價格總覽 →</a>
+        <a href="paper.html" class="pill">🧪 模擬交易 →</a>
       </div>
     </div>
   </header>
@@ -34,7 +35,8 @@
     <section class="cards" id="summary-cards"></section>
 
     <section class="panel">
-      <h2>🇹🇼 台股焦點（主要）</h2>
+      <h2>🇹🇼 台股焦點（主要）<span id="live-status-tw" class="pulse-dot" style="display:none" title="TWSE 即時報價中"></span></h2>
+      <p class="footnote">價格數值會嘗試連線 TWSE 公開報價做即時更新；若你的瀏覽器/網路擋掉這個連線，會自動改用每 5 分鐘更新一次的資料，不影響其他功能。</p>
       <div id="simple-signals-tw" class="skeleton-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
@@ -122,6 +124,7 @@
   </footer>
 
   <script src="assets/common.js"></script>
+  <script src="assets/paper.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

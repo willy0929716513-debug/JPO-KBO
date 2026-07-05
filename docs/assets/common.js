@@ -12,6 +12,18 @@ const SYMBOL_NAMES = {
   "2881.TW": "富邦金", "2882.TW": "國泰金", "2412.TW": "中華電",
   "1301.TW": "台塑", "2603.TW": "長榮", "3711.TW": "日月光投控",
   "0050.TW": "元大台灣50",
+  "2002.TW": "中鋼", "1216.TW": "統一", "2886.TW": "兆豐金",
+  "2891.TW": "中信金", "2892.TW": "第一金", "2884.TW": "玉山金",
+  "2885.TW": "元大金", "2880.TW": "華南金", "5880.TW": "合庫金",
+  "2887.TW": "台新金", "2890.TW": "永豐金", "1101.TW": "台泥",
+  "1303.TW": "南亞", "1326.TW": "台化", "2379.TW": "瑞昱",
+  "2357.TW": "華碩", "2353.TW": "宏碁", "2408.TW": "南亞科",
+  "2609.TW": "陽明", "2615.TW": "萬海", "3034.TW": "聯詠",
+  "3037.TW": "欣興", "3045.TW": "台灣大", "4904.TW": "遠傳",
+  "2207.TW": "和泰車", "9910.TW": "豐泰", "6505.TW": "台塑化",
+  "2395.TW": "研華", "3008.TW": "大立光", "2409.TW": "友達",
+  "3231.TW": "緯創", "2324.TW": "仁寶", "2327.TW": "國巨",
+  "5871.TW": "中租-KY", "2377.TW": "微星",
   "GC=F": "黃金", "SI=F": "白銀", "CL=F": "原油", "EURUSD=X": "歐元/美元",
   "BTC/USDT": "比特幣", "ETH/USDT": "以太幣",
 };
@@ -151,4 +163,62 @@ function createLiveCryptoTicker(containerId, statusDotId, symbols = ["btcusdt", 
   };
 
   buildItems();
+}
+
+// Best-effort near-real-time quotes for Taiwan stocks via TWSE's public
+// (undocumented, no API key) MIS quote endpoint. Unlike Binance's
+// WebSocket this is a plain polled REST endpoint behind an ordinary CORS
+// policy that can vary or change without notice -- if the browser blocks
+// it (CORS, corporate network, TWSE-side change, etc.) this silently gives
+// up after a couple of failed attempts, and the page just keeps showing
+// the regular 5-minute-refreshed price from signals_latest.json. A block
+// here can never break the rest of the dashboard.
+function startTaiwanLiveQuotes(symbols, statusDotId) {
+  if (!symbols || symbols.length === 0) return;
+  const statusDot = statusDotId ? document.getElementById(statusDotId) : null;
+  const exCh = symbols.map((s) => `tse_${s.replace(".TW", "")}.tw`).join("|");
+  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exCh}`;
+  const lastPrices = {};
+  let failCount = 0;
+  let timer = null;
+
+  const tick = async () => {
+    try {
+      const resp = await fetch(`${url}&_=${Date.now()}`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      const rows = data.msgArray || [];
+      if (rows.length === 0) throw new Error("empty msgArray");
+
+      failCount = 0;
+      if (statusDot) statusDot.style.display = "inline-block";
+
+      rows.forEach((row) => {
+        const symbol = `${row.c}.TW`;
+        const price = parseFloat(row.z);
+        if (!price || Number.isNaN(price)) return;
+        const prevPrice = lastPrices[symbol];
+        lastPrices[symbol] = price;
+
+        document.querySelectorAll(`[data-symbol="${symbol}"] .js-live-price`).forEach((el) => {
+          el.textContent = fmtNum(price, 2);
+          if (prevPrice !== undefined && prevPrice !== price) {
+            el.classList.remove("live-flash-up", "live-flash-down");
+            void el.offsetWidth; // reflow so the flash can retrigger on rapid consecutive ticks
+            el.classList.add(price > prevPrice ? "live-flash-up" : "live-flash-down");
+          }
+        });
+      });
+    } catch (err) {
+      failCount += 1;
+      if (failCount >= 2) {
+        if (statusDot) statusDot.style.display = "none";
+        if (timer) clearInterval(timer);
+        console.warn("TWSE live quotes unavailable -- keeping the 5-minute-refreshed price instead.", err);
+      }
+    }
+  };
+
+  timer = setInterval(tick, 15000);
+  tick();
 }
