@@ -234,3 +234,64 @@ function startTaiwanLiveQuotes(symbols, statusDotId) {
     if (event.animationName === "splashFadeOut") splash.remove();
   });
 })();
+
+// Opt-in browser notifications for "a symbol's signal just flipped to a
+// strong BUY/SELL" -- opt-in because browsers refuse to even show the
+// permission prompt unless it's triggered by a real user click, and
+// because auto-prompting on page load is a bad, spammy pattern users
+// (rightly) distrust.
+const NOTIFY_PREF_KEY = "quantDashboardNotifyEnabled_v1";
+
+function notificationsSupported() {
+  return typeof Notification !== "undefined";
+}
+
+function notificationsEnabled() {
+  return notificationsSupported() && Notification.permission === "granted" && localStorage.getItem(NOTIFY_PREF_KEY) === "true";
+}
+
+function requestNotificationPermission() {
+  if (!notificationsSupported()) {
+    alert("這個瀏覽器不支援通知功能。");
+    return;
+  }
+  if (Notification.permission === "denied") {
+    alert("瀏覽器先前已封鎖這個網站的通知權限，需要到瀏覽器的網站設定裡手動重新允許。");
+    return;
+  }
+  Notification.requestPermission().then((perm) => {
+    localStorage.setItem(NOTIFY_PREF_KEY, perm === "granted" ? "true" : "false");
+    if (typeof refreshNotifyButton === "function") refreshNotifyButton();
+    if (perm === "granted") {
+      new Notification("量化訊號小幫手", { body: "通知已開啟，之後有標的轉為強烈做多/做空訊號時會提醒你。", icon: "icons/icon-192.png" });
+    }
+  });
+}
+
+function disableNotifications() {
+  localStorage.setItem(NOTIFY_PREF_KEY, "false");
+  if (typeof refreshNotifyButton === "function") refreshNotifyButton();
+}
+
+// items: [{ symbol, name, action }]
+function notifyStrongSignals(items) {
+  if (!notificationsEnabled() || !items || items.length === 0) return;
+  const preview = items.slice(0, 3).map((i) => `${i.name}(${ACTION_ZH[i.action]})`).join("、");
+  const more = items.length > 3 ? ` 等 ${items.length} 檔` : "";
+  new Notification("量化訊號更新", {
+    body: `${preview}${more} 剛轉為新訊號`,
+    icon: "icons/icon-192.png",
+  });
+}
+
+// Registers the offline/app-shell service worker so the site can be added
+// to a phone's home screen and still open (with the last cached data) when
+// there's no connection. Safe to call on every page load -- the browser
+// no-ops if it's already registered and unchanged.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((err) => {
+      console.warn("Service worker registration failed (site still works normally online):", err);
+    });
+  });
+}

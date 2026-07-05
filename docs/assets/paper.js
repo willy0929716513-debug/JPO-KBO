@@ -26,7 +26,7 @@ function paperLoadState() {
   } catch (err) {
     console.warn("Paper trading state was corrupted, resetting.", err);
   }
-  return { cash: PAPER_STARTING_CASH, positions: {}, history: [], autoTradeEnabled: false };
+  return { cash: PAPER_STARTING_CASH, positions: {}, history: [], autoTradeEnabled: false, equityHistory: [] };
 }
 
 function paperSaveState(state) {
@@ -39,10 +39,31 @@ function paperResetState() {
   location.reload();
 }
 
+function paperComputeEquity(state) {
+  const unrealized = Object.entries(state.positions).reduce(
+    (sum, [symbol, pos]) => sum + paperUnrealizedPnl(pos, PAPER_LATEST_PRICES[symbol]), 0);
+  const positionsValue = Object.entries(state.positions).reduce(
+    (sum, [, pos]) => sum + pos.avgPrice * pos.qty, 0);
+  return state.cash + positionsValue + unrealized;
+}
+
+// Appends one {time, equity} point every time fresh prices come in (from
+// either page that loads this script), so paper.html can plot an equity
+// curve. Capped to the last 300 points -- plenty for a 5-minute-cadence
+// dashboard without letting localStorage grow unbounded.
+function paperRecordEquitySnapshot(state) {
+  state.equityHistory = state.equityHistory || [];
+  state.equityHistory.push({ time: new Date().toISOString(), equity: paperComputeEquity(state) });
+  state.equityHistory = state.equityHistory.slice(-300);
+}
+
 function paperCacheLatestPrices(payload) {
   (payload.signals || []).forEach((s) => {
     if (typeof s.last_price === "number") PAPER_LATEST_PRICES[s.symbol] = s.last_price;
   });
+  const state = paperLoadState();
+  paperRecordEquitySnapshot(state);
+  paperSaveState(state);
 }
 
 function paperPushHistory(state, entry) {
@@ -176,6 +197,37 @@ function renderTradeButtons(scopeEl) {
   });
 }
 
+let paperEquityChart;
+
+// No-ops on index.html (no #paper-equity-chart canvas there, and Chart.js
+// isn't even loaded on that page). Needs at least 2 points to draw a line.
+function paperRenderEquityChart(state) {
+  const canvas = document.getElementById("paper-equity-chart");
+  if (!canvas || typeof Chart === "undefined") return;
+  const history = state.equityHistory || [];
+  if (history.length < 2) return;
+
+  if (paperEquityChart) paperEquityChart.destroy();
+  paperEquityChart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: history.map((h) => new Date(h.time).toLocaleString()),
+      datasets: [{
+        label: "虛擬總資產", data: history.map((h) => h.equity),
+        borderColor: "#5b8cff", backgroundColor: "#5b8cff22", tension: 0.3, pointRadius: 0, fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#8b93a7", maxTicksLimit: 6 }, grid: { color: "#232c42" } },
+        y: { ticks: { color: "#8b93a7" }, grid: { color: "#232c42" } },
+      },
+    },
+  });
+}
+
 // Full portfolio view for paper.html: summary cards, open positions
 // (with live-ish unrealized P&L and a close button), and recent history.
 // No-ops if the page doesn't have these elements (e.g. when paper.js is
@@ -186,13 +238,12 @@ function paperRenderDashboardPage() {
   const toggle = document.getElementById("paper-auto-toggle");
   if (toggle) toggle.checked = !!state.autoTradeEnabled;
 
+  const unrealized = Object.entries(state.positions).reduce(
+    (sum, [symbol, pos]) => sum + paperUnrealizedPnl(pos, PAPER_LATEST_PRICES[symbol]), 0);
+  const equity = paperComputeEquity(state);
+
   const summaryEl = document.getElementById("paper-summary");
   if (summaryEl) {
-    const unrealized = Object.entries(state.positions).reduce(
-      (sum, [symbol, pos]) => sum + paperUnrealizedPnl(pos, PAPER_LATEST_PRICES[symbol]), 0);
-    const positionsValue = Object.entries(state.positions).reduce(
-      (sum, [, pos]) => sum + pos.avgPrice * pos.qty, 0);
-    const equity = state.cash + positionsValue + unrealized;
     const totalPnl = equity - PAPER_STARTING_CASH;
     const cards = [
       { label: "虛擬總資產", value: Math.round(equity).toLocaleString() },
@@ -202,6 +253,8 @@ function paperRenderDashboardPage() {
     ];
     summaryEl.innerHTML = cards.map((c) => `<div class="card"><div class="label">${c.label}</div><div class="value">${c.value}</div></div>`).join("");
   }
+
+  paperRenderEquityChart(state);
 
   const positionsEl = document.getElementById("paper-positions");
   if (positionsEl) {

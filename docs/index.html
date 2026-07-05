@@ -4,6 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>今日交易建議｜量化訊號小幫手</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#05070d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="量化訊號" />
 <link rel="stylesheet" href="assets/style.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
@@ -48,6 +56,7 @@
         <span id="generated-at" class="pill">載入中...</span>
         <span id="fear-greed" class="pill">市場情緒：--</span>
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
+        <button id="notify-btn" class="pill pill-btn" onclick="requestNotificationPermission()">🔔 開啟強訊號通知</button>
         <a href="prices.html" class="pill">💹 即時價格總覽 →</a>
         <a href="paper.html" class="pill">🧪 模擬交易 →</a>
       </div>
@@ -65,6 +74,21 @@
     </section>
 
     <section class="cards" id="summary-cards"></section>
+
+    <section class="panel" id="top-picks-panel" style="display:none">
+      <h2>🌟 今日焦點</h2>
+      <p class="footnote">所有市場中信心程度最高的做多/做空標的，讓你不用整批卡片都掃過一遍</p>
+      <div id="top-picks" class="pick-grid"></div>
+    </section>
+
+    <section class="panel filter-bar">
+      <input id="signal-search" type="search" class="search-input" placeholder="🔍 搜尋股票代號或名稱..." />
+      <label class="paper-switch small">
+        <input type="checkbox" id="hide-hold-toggle" />
+        <span class="paper-switch-track"></span>
+      </label>
+      <span class="filter-bar-label">只看做多/做空（隱藏觀望）</span>
+    </section>
 
     <section class="panel">
       <h2>🇹🇼 台股焦點（主要）<span id="live-status-tw" class="pulse-dot" style="display:none" title="TWSE 即時報價中"></span></h2>
