@@ -8,9 +8,41 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
+  <div class="top-accent-bar"></div>
+  <div id="app-splash" class="app-splash">
+    <svg class="app-splash-logo" width="84" height="84" viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <linearGradient id="logoGrad-idx-splash" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#22c55e" />
+          <stop offset="100%" stop-color="#5b8cff" />
+        </linearGradient>
+      </defs>
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-idx-splash)" opacity="0.16" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-idx-splash)" stroke-width="1.6" />
+      <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
+      <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
+      <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
+    </svg>
+    <div class="app-splash-title">量化訊號小幫手</div>
+  </div>
+
   <header class="topbar">
     <div class="topbar-inner">
-      <h1>📈 今日交易建議</h1>
+      <h1>
+        <svg class="brand-logo" width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+          <defs>
+            <linearGradient id="logoGrad-idx-header" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0%" stop-color="#22c55e" />
+              <stop offset="100%" stop-color="#5b8cff" />
+            </linearGradient>
+          </defs>
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-idx-header)" opacity="0.16" />
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-idx-header)" stroke-width="1.6" />
+          <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
+          <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
+          <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
+        </svg>
+        📈 今日交易建議</h1>
       <p class="subtitle">股票 / 黃金 / 原油 / 外匯 / 加密貨幣，自動幫你看盤，用白話文告訴你現在該買、該賣、還是先觀望</p>
       <div class="meta-row">
         <span id="generated-at" class="pill">載入中...</span>

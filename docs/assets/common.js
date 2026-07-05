@@ -222,3 +222,15 @@ function startTaiwanLiveQuotes(symbols, statusDotId) {
   timer = setInterval(tick, 15000);
   tick();
 }
+
+// The splash screen (#app-splash, present on every page) fades itself out
+// via a CSS animation; this just removes the now-invisible element from
+// the DOM afterwards so it can't linger in the accessibility tree or catch
+// a stray click. No-op if a page doesn't have a splash element.
+(function cleanupSplashScreen() {
+  const splash = document.getElementById("app-splash");
+  if (!splash) return;
+  splash.addEventListener("animationend", (event) => {
+    if (event.animationName === "splashFadeOut") splash.remove();
+  });
+})();
