@@ -52,12 +52,18 @@ def _stub_external_dependencies(tmp_path, monkeypatch):
 
 def test_first_run_analyzes_closed_market_symbol_anyway(tmp_path):
     """With no prior data at all, a closed-market symbol should still get
-    analyzed once so the dashboard isn't empty for it forever."""
+    analyzed once so the dashboard isn't empty for it forever -- but its
+    market_open flag must still honestly reflect that the market is
+    actually closed. Being freshly analyzed for the first time doesn't
+    make a closed market open; an earlier version of this code hardcoded
+    market_open=True for any freshly-analyzed symbol, which mislabeled
+    brand-new watchlist additions as "open" even on a day their market was
+    genuinely closed."""
     payload = daily_run.run_daily_pipeline()
     symbols = {s["symbol"]: s for s in payload["signals"]}
 
     assert symbols["OPEN_SYM"]["market_open"] is True
-    assert symbols["CLOSED_SYM"]["market_open"] is True  # no prior data -> analyzed anyway
+    assert symbols["CLOSED_SYM"]["market_open"] is False  # freshly analyzed, but market is genuinely closed
 
 
 def test_second_run_carries_forward_closed_market_symbol(tmp_path):
