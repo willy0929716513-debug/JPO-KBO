@@ -63,6 +63,8 @@ body {
 }
 .pill-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px -4px rgba(91, 140, 255, 0.65); }
 .pill-btn:active { transform: translateY(0); }
+.pill-btn.danger { background: linear-gradient(135deg, var(--red), #b91c3c); box-shadow: 0 4px 14px -4px rgba(244, 63, 94, 0.5); }
+.pill-btn.danger:hover { box-shadow: 0 6px 18px -4px rgba(244, 63, 94, 0.65); }
 
 .pulse-dot {
   width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0;
@@ -205,6 +207,32 @@ tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .market-closed { color: var(--muted-dim); }
 
 .pick-reason { font-size: 13px; line-height: 1.55; padding-top: 5px; border-top: 1px dashed var(--border); color: #cfd5e6; }
+
+.pick-indicators { line-height: 1.6; }
+
+.pick-trade-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 3px; }
+.pill-btn.small { padding: 5px 12px; font-size: 12px; border-radius: 999px; }
+.paper-position-badge {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted);
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; width: 100%;
+}
+
+/* ------------------------------------------------------------ paper trading --- */
+.paper-summary-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.paper-positions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 4px; }
+.paper-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); margin-bottom: 4px; }
+.paper-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.paper-switch input { opacity: 0; width: 0; height: 0; }
+.paper-switch-track {
+  position: absolute; inset: 0; background: var(--border-strong); border-radius: 999px; cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.paper-switch-track::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s ease;
+}
+.paper-switch input:checked + .paper-switch-track { background: var(--accent); }
+.paper-switch input:checked + .paper-switch-track::before { transform: translateX(18px); }
 
 /* ------------------------------------------------------------ skeletons --- */
 .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(262px, 1fr)); gap: 14px; }

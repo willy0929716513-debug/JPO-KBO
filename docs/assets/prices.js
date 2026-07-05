@@ -3,6 +3,7 @@
 const DATA_URL = "data/signals_latest.json";
 const HISTORY_URL = "data/history.json";
 const PRICES_REFRESH_MS = 60_000;
+let taiwanLiveStarted = false;
 
 const GROUPS = [
   { key: "taiwan", classes: ["taiwan"] },
@@ -55,12 +56,12 @@ function renderGroup(containerId, signals, history) {
     const action = effectiveAction(s);
     const asOf = s.as_of ? new Date(s.as_of).toLocaleString() : "-";
 
-    return `<div class="price-card">
+    return `<div class="price-card" data-symbol="${s.symbol}">
       <div class="price-card-head">
         <div class="pick-name">${name} <span class="pick-symbol">${s.symbol}</span></div>
         ${marketStatusBadge(s.market_open)}
       </div>
-      <div class="price-card-value num">${fmtNum(s.last_price, 4)}${changeHtml}</div>
+      <div class="price-card-value num"><span class="js-live-price">${fmtNum(s.last_price, 4)}</span>${changeHtml}</div>
       <div class="price-card-meta">
         <span class="badge ${badgeClass(action)}">${ACTION_ZH[action]}</span>
         <span class="footnote">資料時間：${asOf}</span>
@@ -91,6 +92,11 @@ async function loadPrices() {
     renderGroup("group-stocks", groups.stocks, history);
     renderGroup("group-futures", groups.futures, history);
     renderGroup("group-forex", groups.forex, history);
+
+    if (!taiwanLiveStarted) {
+      startTaiwanLiveQuotes(groups.taiwan.map((s) => s.symbol), "live-status-tw");
+      taiwanLiveStarted = true;
+    }
   } catch (err) {
     document.getElementById("generated-at").textContent = "尚未有資料，等待第一次自動更新";
     console.error(err);

@@ -56,13 +56,14 @@ function renderPickCards(containerId, signals) {
     const action = effectiveAction(s);
     const name = SYMBOL_NAMES[s.symbol] || s.symbol;
     const conf = (s.decision_engine && s.decision_engine.vetoed) ? 0 : sig.confidence;
+    const ind = s.indicators;
 
-    return `<div class="pick-card ${badgeClass(action)}-card" style="animation-delay:${Math.min(i * 35, 350)}ms">
+    return `<div class="pick-card ${badgeClass(action)}-card" data-symbol="${s.symbol}" style="animation-delay:${Math.min(i * 35, 350)}ms">
       <div class="pick-head">
         <div class="pick-name">${name} <span class="pick-symbol">${s.symbol}</span></div>
         <div class="pick-action badge ${badgeClass(action)}">${ACTION_ZH[action]}</div>
       </div>
-      <div class="pick-price">目前價格：<b class="num">${fmtNum(s.last_price, 4)}</b> ${marketStatusBadge(s.market_open)}</div>
+      <div class="pick-price">目前價格：<b class="num js-live-price">${fmtNum(s.last_price, 4)}</b> ${marketStatusBadge(s.market_open)}</div>
       <div class="pick-levels num">
         <span>建議停損：${fmtNum(sig.stop_loss, 4)}</span>
         <span>建議停利：${fmtNum(sig.take_profit, 4)}</span>
@@ -72,8 +73,16 @@ function renderPickCards(containerId, signals) {
         <span class="confidence-dots">${confidenceDots(conf)}</span>
       </div>
       <div class="pick-reason">${buildPlainReason(s)}</div>
+      ${ind ? `<div class="pick-indicators footnote num">
+        RSI(14) ${fmtNum(ind.rsi_14, 1)}｜MACD柱 ${fmtNum(ind.macd_hist, 3)}｜
+        SMA20 ${fmtNum(ind.sma_20, 2)} / SMA50 ${fmtNum(ind.sma_50, 2)}｜
+        量比 ${fmtNum(ind.volume_ratio, 2)}｜ATR% ${fmtNum(ind.atr_pct, 2)}%
+      </div>` : ""}
+      <div class="pick-trade-actions" data-symbol="${s.symbol}" data-price="${s.last_price}"></div>
     </div>`;
   }).join("");
+
+  if (typeof renderTradeButtons === "function") renderTradeButtons(container);
 }
 
 // Taiwan stocks are the user's primary focus, so they get their own
@@ -158,6 +167,8 @@ function renderBacktest(payload) {
   document.getElementById("backtest-body").innerHTML = rows.join("") || `<tr><td colspan="9">尚無資料</td></tr>`;
 }
 
+let taiwanLiveStarted = false;
+
 let historyChart;
 function renderHistory(history) {
   const canvas = document.getElementById("history-chart");
@@ -197,11 +208,20 @@ async function loadDashboard() {
       "最後更新: " + new Date(payload.generated_at).toLocaleString();
     renderFearGreed("fear-greed", payload.market_sentiment?.crypto_fear_greed);
 
+    if (typeof paperCacheLatestPrices === "function") paperCacheLatestPrices(payload);
+    if (typeof paperAutoTradeTick === "function") paperAutoTradeTick(payload);
+
     renderSummary(payload);
     renderSimpleSignals(payload);
     renderSignals(payload);
     renderPairs(payload);
     renderBacktest(payload);
+
+    if (!taiwanLiveStarted) {
+      const taiwanSymbols = (payload.signals || []).filter((s) => s.asset_class === "taiwan").map((s) => s.symbol);
+      startTaiwanLiveQuotes(taiwanSymbols, "live-status-tw");
+      taiwanLiveStarted = true;
+    }
   } catch (err) {
     document.getElementById("generated-at").textContent = "尚未有資料，等待第一次自動更新";
     console.error(err);
