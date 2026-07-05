@@ -296,6 +296,15 @@ def run_daily_pipeline() -> dict:
                 if res:
                     res["market_open"] = market_open
                     results.append(res)
+                else:
+                    # _analyze_symbol returns None (rather than raising) for
+                    # empty/too-short/NaN data -- e.g. every configured data
+                    # provider being unreachable for this symbol. That used
+                    # to vanish the symbol from the payload with no trace
+                    # anywhere, which let a persistent provider outage (see
+                    # CCXTProvider's exchange fallback) go unnoticed for
+                    # days. Surface it in errors like any other failure.
+                    errors.append({"symbol": symbol, "error": f"no usable OHLCV data ({len(df)} rows)"})
             except Exception as exc:
                 logger.error("Failed analyzing %s: %s", symbol, exc)
                 errors.append({"symbol": symbol, "error": str(exc), "trace": traceback.format_exc(limit=3)})
