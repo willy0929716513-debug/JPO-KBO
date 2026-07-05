@@ -4,7 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>模擬交易｜量化訊號小幫手</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#05070d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="量化訊號" />
 <link rel="stylesheet" href="assets/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
   <div class="top-accent-bar"></div>
@@ -59,6 +68,12 @@
     </section>
 
     <section class="cards" id="paper-summary"></section>
+
+    <section class="panel">
+      <h2>虛擬資產走勢</h2>
+      <canvas id="paper-equity-chart" height="90"></canvas>
+      <p class="footnote">累積至少兩次資料更新後才會開始畫線；只記錄這個瀏覽器開著這個網頁期間的資產變化。</p>
+    </section>
 
     <section class="panel">
       <div class="paper-toggle-row">

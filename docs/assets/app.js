@@ -17,6 +17,62 @@ function buildPlainReason(s) {
   return `目前${regimeText}，訊號不夠明確，建議先觀望，不用急著進場`;
 }
 
+// Search text + "hide HOLD" toggle applied to both the Taiwan and
+// auxiliary grids (not to 今日焦點, which always shows the global best
+// regardless of the active filter -- it's meant to be glanceable even
+// while you're mid-search for something else).
+const filterState = { query: "", hideHold: false };
+
+function passesFilter(s) {
+  if (filterState.hideHold && effectiveAction(s) === "HOLD") return false;
+  if (filterState.query) {
+    const q = filterState.query;
+    const name = (SYMBOL_NAMES[s.symbol] || "").toLowerCase();
+    if (!s.symbol.toLowerCase().includes(q) && !name.includes(q)) return false;
+  }
+  return true;
+}
+
+// Tracks each symbol's action across polls (localStorage, so it survives
+// a reload) purely to detect "this just flipped since last time" -- both
+// for the 🆕 badge on cards and for triggering a browser notification.
+// A symbol seen for the first time is never flagged as "changed": with
+// no prior action to compare against, everything would otherwise light
+// up as new on the very first load.
+const LAST_SEEN_ACTIONS_KEY = "quantDashboardLastSeenActions_v1";
+let changedSymbols = new Set();
+
+function updateChangeTrackingAndNotify(payload) {
+  let previous = {};
+  try { previous = JSON.parse(localStorage.getItem(LAST_SEEN_ACTIONS_KEY) || "{}"); } catch (err) { previous = {}; }
+
+  const current = {};
+  const changed = new Set();
+  const strongNew = [];
+
+  (payload.signals || []).forEach((s) => {
+    const action = effectiveAction(s);
+    current[s.symbol] = action;
+    const prevAction = previous[s.symbol];
+    if (prevAction !== undefined && prevAction !== action) {
+      changed.add(s.symbol);
+      if (action !== "HOLD" && s.signal.confidence >= 0.6) {
+        strongNew.push({ symbol: s.symbol, name: SYMBOL_NAMES[s.symbol] || s.symbol, action });
+      }
+    }
+  });
+
+  changedSymbols = changed;
+  localStorage.setItem(LAST_SEEN_ACTIONS_KEY, JSON.stringify(current));
+  if (strongNew.length > 0) notifyStrongSignals(strongNew);
+}
+
+function refreshNotifyButton() {
+  const btn = document.getElementById("notify-btn");
+  if (!btn) return;
+  btn.textContent = notificationsEnabled() ? "🔔 強訊號通知：已開啟" : "🔔 開啟強訊號通知";
+}
+
 function renderSummary(payload) {
   const counts = { BUY: 0, SELL: 0, HOLD: 0 };
   payload.signals.forEach((s) => counts[effectiveAction(s)]++);
@@ -36,12 +92,12 @@ function renderSummary(payload) {
 // Renders one group of pick-cards into containerId. Shared by the primary
 // Taiwan-focus section and the smaller auxiliary section for every other
 // market, so both look and sort identically.
-function renderPickCards(containerId, signals) {
+function renderPickCards(containerId, signals, emptyMessage) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.className = "pick-grid";
   if (signals.length === 0) {
-    container.innerHTML = `<p class="footnote">尚無資料</p>`;
+    container.innerHTML = `<p class="footnote">${emptyMessage || "尚無資料"}</p>`;
     return;
   }
 
@@ -61,7 +117,10 @@ function renderPickCards(containerId, signals) {
     return `<div class="pick-card ${badgeClass(action)}-card" data-symbol="${s.symbol}" style="animation-delay:${Math.min(i * 35, 350)}ms">
       <div class="pick-head">
         <div class="pick-name">${name} <span class="pick-symbol">${s.symbol}</span></div>
-        <div class="pick-action badge ${badgeClass(action)}">${ACTION_ZH[action]}</div>
+        <div class="pick-head-badges">
+          ${changedSymbols.has(s.symbol) ? `<span class="badge badge-new">🆕 剛轉變</span>` : ""}
+          <div class="pick-action badge ${badgeClass(action)}">${ACTION_ZH[action]}</div>
+        </div>
       </div>
       <div class="pick-price">目前價格：<b class="num js-live-price">${fmtNum(s.last_price, 4)}</b> ${marketStatusBadge(s.market_open)}</div>
       <div class="pick-levels num">
@@ -89,11 +148,29 @@ function renderPickCards(containerId, signals) {
 // prominent section; every other market (US equity/ETF, gold/oil, forex,
 // crypto) is grouped underneath as a smaller supporting/auxiliary section.
 function renderSimpleSignals(payload) {
-  const signals = payload.signals || [];
+  const signals = (payload.signals || []).filter(passesFilter);
   const taiwanSignals = signals.filter((s) => s.asset_class === "taiwan");
   const otherSignals = signals.filter((s) => s.asset_class !== "taiwan");
-  renderPickCards("simple-signals-tw", taiwanSignals);
-  renderPickCards("simple-signals-other", otherSignals);
+  const filterActive = filterState.query || filterState.hideHold;
+  const emptyMessage = filterActive ? "沒有符合搜尋/篩選條件的標的" : "尚無資料";
+  renderPickCards("simple-signals-tw", taiwanSignals, emptyMessage);
+  renderPickCards("simple-signals-other", otherSignals, emptyMessage);
+}
+
+// Independent of the search/filter above -- always surfaces the handful of
+// highest-confidence actionable (non-HOLD) picks across every market, so
+// there's an at-a-glance answer before scrolling through 48+ Taiwan cards.
+function renderTopPicks(payload) {
+  const panel = document.getElementById("top-picks-panel");
+  if (!panel) return;
+  const actionable = (payload.signals || [])
+    .filter((s) => effectiveAction(s) !== "HOLD")
+    .slice()
+    .sort((a, b) => b.signal.confidence - a.signal.confidence)
+    .slice(0, 5);
+
+  panel.style.display = actionable.length > 0 ? "" : "none";
+  renderPickCards("top-picks", actionable);
 }
 
 function renderDecisionBadge(decision) {
@@ -199,10 +276,13 @@ function renderHistory(history) {
   });
 }
 
+let lastPayload = null;
+
 async function loadDashboard() {
   try {
     const resp = await fetch(`${DATA_URL}?t=${Date.now()}`);
     const payload = await resp.json();
+    lastPayload = payload;
 
     document.getElementById("generated-at").textContent =
       "最後更新: " + new Date(payload.generated_at).toLocaleString();
@@ -210,8 +290,10 @@ async function loadDashboard() {
 
     if (typeof paperCacheLatestPrices === "function") paperCacheLatestPrices(payload);
     if (typeof paperAutoTradeTick === "function") paperAutoTradeTick(payload);
+    updateChangeTrackingAndNotify(payload);
 
     renderSummary(payload);
+    renderTopPicks(payload);
     renderSimpleSignals(payload);
     renderSignals(payload);
     renderPairs(payload);
@@ -236,6 +318,25 @@ async function loadDashboard() {
 }
 
 document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
+
+// Filtering re-renders instantly from the already-fetched payload -- no
+// need to hit the network again just to change what's shown.
+const searchInput = document.getElementById("signal-search");
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    filterState.query = searchInput.value.trim().toLowerCase();
+    if (lastPayload) renderSimpleSignals(lastPayload);
+  });
+}
+const hideHoldToggle = document.getElementById("hide-hold-toggle");
+if (hideHoldToggle) {
+  hideHoldToggle.addEventListener("change", () => {
+    filterState.hideHold = hideHoldToggle.checked;
+    if (lastPayload) renderSimpleSignals(lastPayload);
+  });
+}
+
+refreshNotifyButton();
 loadDashboard();
 createLiveCryptoTicker("live-crypto", "live-status");
 setInterval(loadDashboard, DASHBOARD_REFRESH_MS);
