@@ -92,6 +92,8 @@ function renderSummary(payload) {
 // Renders one group of pick-cards into containerId. Shared by the primary
 // Taiwan-focus section and the smaller auxiliary section for every other
 // market, so both look and sort identically.
+const PICK_GRID_COLLAPSE_THRESHOLD = 10;
+
 function renderPickCards(containerId, signals, emptyMessage) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -107,14 +109,15 @@ function renderPickCards(containerId, signals, emptyMessage) {
     return diff !== 0 ? diff : b.signal.confidence - a.signal.confidence;
   });
 
-  container.innerHTML = sorted.map((s, i) => {
+  const cardsHtml = sorted.map((s, i) => {
     const sig = s.signal;
     const action = effectiveAction(s);
     const name = SYMBOL_NAMES[s.symbol] || s.symbol;
     const conf = (s.decision_engine && s.decision_engine.vetoed) ? 0 : sig.confidence;
     const ind = s.indicators;
 
-    return `<div class="pick-card ${badgeClass(action)}-card" data-symbol="${s.symbol}" style="animation-delay:${Math.min(i * 35, 350)}ms">
+    const isExtra = i >= PICK_GRID_COLLAPSE_THRESHOLD;
+    return `<div class="pick-card ${badgeClass(action)}-card${isExtra ? " pick-card-extra" : ""}" data-symbol="${s.symbol}" ${isExtra ? "hidden" : ""} style="animation-delay:${Math.min(i * 35, 350)}ms">
       <div class="pick-head">
         <div class="pick-name">${name} <span class="pick-symbol">${s.symbol}</span></div>
         <div class="pick-head-badges">
@@ -148,7 +151,28 @@ function renderPickCards(containerId, signals, emptyMessage) {
     </div>`;
   }).join("");
 
+  const toggleHtml = sorted.length > PICK_GRID_COLLAPSE_THRESHOLD
+    ? `<button type="button" class="pick-grid-toggle">展開查看全部 ${sorted.length} 檔 ▾</button>`
+    : "";
+  container.innerHTML = cardsHtml + toggleHtml;
+
   if (typeof renderTradeButtons === "function") renderTradeButtons(container);
+  wirePickGridToggle(container);
+}
+
+function wirePickGridToggle(container) {
+  const btn = container.querySelector(".pick-grid-toggle");
+  if (!btn) return;
+  const total = container.querySelectorAll(".pick-card").length;
+  btn.addEventListener("click", () => {
+    const collapsing = btn.dataset.expanded === "true";
+    container.querySelectorAll(".pick-card-extra").forEach((card) => {
+      if (collapsing) card.setAttribute("hidden", "");
+      else card.removeAttribute("hidden");
+    });
+    btn.dataset.expanded = collapsing ? "false" : "true";
+    btn.textContent = collapsing ? `展開查看全部 ${total} 檔 ▾` : "收合 ▲";
+  });
 }
 
 // Taiwan is the user's primary focus and is the default tab; the other
