@@ -10,7 +10,7 @@
 // Relies on SYMBOL_NAMES / ACTION_ZH / fmtNum / effectiveAction from
 // common.js, loaded before this file.
 const PAPER_STORAGE_KEY = "quantDashboardPaperTrading_v1";
-const PAPER_STARTING_CASH = 1_000_000; // virtual TWD
+const PAPER_STARTING_CASH = 5_000_000; // virtual TWD
 const PAPER_MANUAL_DEFAULT_NOTIONAL = 100_000; // suggested size for a manual trade
 const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // fixed virtual lot per auto-followed signal
 
@@ -34,7 +34,7 @@ function paperSaveState(state) {
 }
 
 function paperResetState() {
-  if (!confirm("確定要重置模擬帳戶嗎？所有虛擬持倉與紀錄都會清空，恢復成 100 萬虛擬台幣。")) return;
+  if (!confirm(`確定要重置模擬帳戶嗎？所有虛擬持倉與紀錄都會清空，恢復成 ${PAPER_STARTING_CASH.toLocaleString()} 虛擬台幣。`)) return;
   localStorage.removeItem(PAPER_STORAGE_KEY);
   location.reload();
 }
