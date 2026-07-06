@@ -124,6 +124,15 @@ def _load_ohlcv(symbol: str, asset_class: str, interval: str = "1d") -> pd.DataF
     return YFinanceProvider().get_ohlcv(symbol, interval)
 
 
+def _load_news(symbol: str, asset_class: str) -> list[dict]:
+    # No free, reliable news source wired up for crypto yet -- yfinance's
+    # (free) news endpoint only covers symbols it also has quotes for,
+    # which doesn't include e.g. "BTC/USDT".
+    if asset_class == "crypto":
+        return []
+    return YFinanceProvider().get_news(symbol)
+
+
 def _json_safe(obj):
     """Recursively replaces NaN/Infinity floats with None so json.dump produces
     strictly valid JSON. Python's json module writes bare `NaN` / `Infinity`
@@ -241,6 +250,7 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
         "backtest": backtest_snapshot,
         "feature_count": FeaturePipeline.feature_count(features),
         "indicators": _extract_indicators(features),
+        "news": _load_news(symbol, asset_class),
     }
 
 

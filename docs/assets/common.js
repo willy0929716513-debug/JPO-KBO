@@ -55,6 +55,37 @@ function fmtNum(n, digits = 2) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
+// News titles/publishers come from an external API (Yahoo Finance), unlike
+// our own static translation tables -- escape before inserting into
+// innerHTML so a stray "<"/"&" in a headline can't be interpreted as markup.
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// published_at is either an ISO string (current yfinance news schema's
+// "pubDate") or a Unix timestamp *in seconds* (legacy "providerPublishTime")
+// -- `new Date()` expects milliseconds, so a raw seconds value must be
+// scaled up first or it parses as a date in 1970.
+function formatNewsDate(publishedAt) {
+  if (!publishedAt) return "";
+  const ms = typeof publishedAt === "number" && publishedAt < 1e12 ? publishedAt * 1000 : publishedAt;
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+}
+
+function renderNewsList(news) {
+  if (!news || news.length === 0) return "";
+  const items = news.map((n) => {
+    const publisher = n.publisher ? `${escapeHtml(n.publisher)} · ` : "";
+    return `<li><a href="${escapeHtml(n.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(n.title)}</a>
+      <span class="footnote">${publisher}${formatNewsDate(n.published_at)}</span></li>`;
+  }).join("");
+  return `<ul class="pick-news">${items}</ul>`;
+}
+
 function confidenceLabel(c) {
   if (c >= 0.6) return "高";
   if (c >= 0.3) return "中";
