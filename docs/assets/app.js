@@ -151,17 +151,27 @@ function renderPickCards(containerId, signals, emptyMessage) {
   if (typeof renderTradeButtons === "function") renderTradeButtons(container);
 }
 
-// Taiwan stocks are the user's primary focus, so they get their own
-// prominent section; every other market (US equity/ETF, gold/oil, forex,
-// crypto) is grouped underneath as a smaller supporting/auxiliary section.
+// Taiwan is the user's primary focus and is the default tab; the other
+// markets each get their own tab too (rather than one lumped-together
+// "其他市場" list) so a specific market (e.g. gold under 期貨/商品) is a
+// click away instead of something to scroll past dozens of Taiwan cards
+// to find.
+const MARKET_TABS = [
+  { key: "taiwan", classes: ["taiwan"] },
+  { key: "us", classes: ["equity", "etf"] },
+  { key: "futures", classes: ["metal", "energy"] },
+  { key: "forex", classes: ["forex"] },
+  { key: "crypto", classes: ["crypto"] },
+];
+
 function renderSimpleSignals(payload) {
   const signals = (payload.signals || []).filter(passesFilter);
-  const taiwanSignals = signals.filter((s) => s.asset_class === "taiwan");
-  const otherSignals = signals.filter((s) => s.asset_class !== "taiwan");
   const filterActive = filterState.query || filterState.hideHold;
   const emptyMessage = filterActive ? "沒有符合搜尋/篩選條件的標的" : "尚無資料";
-  renderPickCards("simple-signals-tw", taiwanSignals, emptyMessage);
-  renderPickCards("simple-signals-other", otherSignals, emptyMessage);
+  MARKET_TABS.forEach((tab) => {
+    const tabSignals = signals.filter((s) => tab.classes.includes(s.asset_class));
+    renderPickCards(`simple-signals-${tab.key}`, tabSignals, emptyMessage);
+  });
 }
 
 // Independent of the search/filter above -- always surfaces the handful of
@@ -342,6 +352,19 @@ if (hideHoldToggle) {
     if (lastPayload) renderSimpleSignals(lastPayload);
   });
 }
+
+// Tab panels stay permanently in the DOM (just hidden/shown) rather than
+// being torn down and rebuilt on switch -- so #live-status-tw keeps the
+// same element identity the whole time, and startTaiwanLiveQuotes' one-time
+// captured reference to it never goes stale.
+document.querySelectorAll(".market-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".market-tab").forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".market-tab-panel").forEach((panel) => {
+      panel.hidden = panel.dataset.tabPanel !== btn.dataset.tab;
+    });
+  });
+});
 
 refreshNotifyButton();
 loadDashboard();
