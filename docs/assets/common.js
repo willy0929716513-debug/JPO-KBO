@@ -315,6 +315,28 @@ function notifyStrongSignals(items) {
   });
 }
 
+// Shared by app.js's renderPickCards (index.html signal cards) and
+// paper.js's paperRenderDashboardPage (paper.html open positions): both
+// render grids of cards that can grow past a screenful (Taiwan alone has
+// 48 symbols; auto-trade can now open a position per recommendation), so
+// both collapse anything past the threshold behind a toggle button.
+const PICK_GRID_COLLAPSE_THRESHOLD = 10;
+
+function wirePickGridToggle(container) {
+  const btn = container.querySelector(".pick-grid-toggle");
+  if (!btn) return;
+  const total = container.querySelectorAll(".pick-card, .price-card").length;
+  btn.addEventListener("click", () => {
+    const collapsing = btn.dataset.expanded === "true";
+    container.querySelectorAll(".pick-card-extra").forEach((card) => {
+      if (collapsing) card.setAttribute("hidden", "");
+      else card.removeAttribute("hidden");
+    });
+    btn.dataset.expanded = collapsing ? "false" : "true";
+    btn.textContent = collapsing ? `展開查看全部 ${total} 檔 ▾` : "收合 ▲";
+  });
+}
+
 // Registers the offline/app-shell service worker so the site can be added
 // to a phone's home screen and still open (with the last cached data) when
 // there's no connection. Safe to call on every page load -- the browser

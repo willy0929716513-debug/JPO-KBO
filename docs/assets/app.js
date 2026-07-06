@@ -92,8 +92,6 @@ function renderSummary(payload) {
 // Renders one group of pick-cards into containerId. Shared by the primary
 // Taiwan-focus section and the smaller auxiliary section for every other
 // market, so both look and sort identically.
-const PICK_GRID_COLLAPSE_THRESHOLD = 10;
-
 function renderPickCards(containerId, signals, emptyMessage) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -158,21 +156,6 @@ function renderPickCards(containerId, signals, emptyMessage) {
 
   if (typeof renderTradeButtons === "function") renderTradeButtons(container);
   wirePickGridToggle(container);
-}
-
-function wirePickGridToggle(container) {
-  const btn = container.querySelector(".pick-grid-toggle");
-  if (!btn) return;
-  const total = container.querySelectorAll(".pick-card").length;
-  btn.addEventListener("click", () => {
-    const collapsing = btn.dataset.expanded === "true";
-    container.querySelectorAll(".pick-card-extra").forEach((card) => {
-      if (collapsing) card.setAttribute("hidden", "");
-      else card.removeAttribute("hidden");
-    });
-    btn.dataset.expanded = collapsing ? "false" : "true";
-    btn.textContent = collapsing ? `展開查看全部 ${total} 檔 ▾` : "收合 ▲";
-  });
 }
 
 // Taiwan is the user's primary focus and is the default tab; the other
