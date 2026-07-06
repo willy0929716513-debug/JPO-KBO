@@ -1,7 +1,6 @@
 // Page-specific logic for prices.html (grouped price overview). Shared
 // constants/helpers live in common.js, loaded before this file.
 const DATA_URL = "data/signals_latest.json";
-const HISTORY_URL = "data/history.json";
 const PRICES_REFRESH_MS = 60_000;
 let taiwanLiveStarted = false;
 
@@ -21,23 +20,7 @@ function groupSignals(signals) {
   return groups;
 }
 
-// Approximates a "since last update" % change using the two most recent
-// history.json entries that included this symbol -- the same signal.price
-// series already recorded for the "近期訊號走勢" chart on the main page,
-// reused here rather than tracked separately.
-function priceChangeFromHistory(symbol, history) {
-  if (!history || history.length < 2) return null;
-  const entries = history
-    .map((h) => h.signals.find((s) => s.symbol === symbol))
-    .filter((e) => e && typeof e.price === "number");
-  if (entries.length < 2) return null;
-  const prev = entries[entries.length - 2];
-  const curr = entries[entries.length - 1];
-  if (!prev.price) return null;
-  return ((curr.price - prev.price) / prev.price) * 100;
-}
-
-function renderGroup(containerId, signals, history) {
+function renderGroup(containerId, signals) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.className = "price-grid";
@@ -48,8 +31,8 @@ function renderGroup(containerId, signals, history) {
 
   container.innerHTML = signals.map((s) => {
     const name = SYMBOL_NAMES[s.symbol] || s.symbol;
-    const change = priceChangeFromHistory(s.symbol, history);
-    const changeHtml = change === null ? "" : `
+    const change = s.change_pct;
+    const changeHtml = (change === null || change === undefined) ? "" : `
       <span class="live-change ${change >= 0 ? "live-up" : "live-down"}">
         ${change >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(change), 2)}%
       </span>`;
@@ -71,14 +54,6 @@ function renderGroup(containerId, signals, history) {
 }
 
 async function loadPrices() {
-  let history = [];
-  try {
-    const histResp = await fetch(`${HISTORY_URL}?t=${Date.now()}`);
-    if (histResp.ok) history = await histResp.json();
-  } catch (err) {
-    console.warn("No history yet", err);
-  }
-
   try {
     const resp = await fetch(`${DATA_URL}?t=${Date.now()}`);
     const payload = await resp.json();
@@ -88,10 +63,10 @@ async function loadPrices() {
     renderFearGreed("fear-greed", payload.market_sentiment?.crypto_fear_greed);
 
     const groups = groupSignals(payload.signals || []);
-    renderGroup("group-taiwan", groups.taiwan, history);
-    renderGroup("group-stocks", groups.stocks, history);
-    renderGroup("group-futures", groups.futures, history);
-    renderGroup("group-forex", groups.forex, history);
+    renderGroup("group-taiwan", groups.taiwan);
+    renderGroup("group-stocks", groups.stocks);
+    renderGroup("group-futures", groups.futures);
+    renderGroup("group-forex", groups.forex);
 
     if (!taiwanLiveStarted) {
       startTaiwanLiveQuotes(groups.taiwan.map((s) => s.symbol), "live-status-tw");

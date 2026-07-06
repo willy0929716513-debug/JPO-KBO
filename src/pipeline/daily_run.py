@@ -213,10 +213,21 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
                             sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity_recent)
     decision = decision_engine.decide(context)
 
+    # "漲跌幅" convention used by every stock ticker/app: today's price vs.
+    # the previous trading day's close, not vs. whatever price the last
+    # poll happened to see a few minutes ago. The frontend used to diff
+    # consecutive history.json snapshots for this, which -- especially now
+    # that free data only actually refreshes every 15-20 minutes (see
+    # README) -- mostly compared a price against itself and showed a
+    # meaningless "0%" between real updates.
+    prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 and not pd.isna(df["close"].iloc[-2]) else None
+    change_pct = round((float(df["close"].iloc[-1]) - prev_close) / prev_close * 100, 2) if prev_close else None
+
     return {
         "symbol": symbol,
         "asset_class": asset_class,
         "last_price": float(df["close"].iloc[-1]),
+        "change_pct": change_pct,
         "as_of": str(df.index[-1]),
         "regime": {
             "state": regime_state.regime.value,
