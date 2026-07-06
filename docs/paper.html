@@ -81,7 +81,7 @@
           <input type="checkbox" id="paper-auto-toggle" onchange="paperSetAutoTrade(this.checked)" />
           <span class="paper-switch-track"></span>
         </label>
-        自動跟單：開啟後，系統每次更新建議清單時，會自動幫你模擬開倉/平倉（固定虛擬金額，約 10 萬台幣一筆），不會影響你手動開的倉位
+        自動跟單：開啟後，系統每次更新建議清單時，會自動幫你模擬開倉/平倉——只要有做多/做空建議就會跟，虛擬資金會平均分配給當下所有建議，不會影響你手動開的倉位
       </div>
       <button class="pill pill-btn danger" onclick="paperResetState()">🗑️ 重置模擬帳戶</button>
     </section>
@@ -94,7 +94,33 @@
     </section>
 
     <section class="panel">
+      <h2>自動跟單 vs 手動操作績效</h2>
+      <p class="footnote">分開統計，才能看出系統訊號跟你自己判斷相比表現如何</p>
+      <div id="paper-source-breakdown" class="cards"></div>
+    </section>
+
+    <section class="panel">
+      <h2>個股損益排行榜</h2>
+      <div id="paper-symbol-leaderboard" class="paper-leaderboard"></div>
+    </section>
+
+    <section class="panel">
       <h2>交易紀錄</h2>
+      <div class="paper-history-controls">
+        <input type="search" id="paper-history-search" class="search-input" placeholder="🔍 搜尋標的..." oninput="paperSetHistoryFilter({query: this.value})" />
+        <select id="paper-history-type-filter" class="select-input" onchange="paperSetHistoryFilter({type: this.value})">
+          <option value="all">全部</option>
+          <option value="open">只看開倉</option>
+          <option value="close">只看平倉</option>
+        </select>
+        <select id="paper-history-sort" class="select-input" onchange="paperSetHistoryFilter({sort: this.value})">
+          <option value="time_desc">時間新到舊</option>
+          <option value="pnl_desc">損益高到低</option>
+          <option value="pnl_asc">損益低到高</option>
+        </select>
+        <button class="pill pill-btn small" onclick="paperExportHistoryCsv()">📥 匯出 CSV</button>
+      </div>
+      <p class="footnote" id="paper-history-stats"></p>
       <div class="table-wrap">
         <table id="paper-history-table">
           <thead>

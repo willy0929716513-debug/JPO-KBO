@@ -156,6 +156,50 @@ body {
 .card:hover { transform: translateY(-2px); border-color: var(--border-strong); }
 .card .label { color: var(--muted); font-size: 12px; margin-bottom: 7px; letter-spacing: 0.01em; }
 .card .value { font-size: 23px; font-weight: 800; }
+.card-primary {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.1), rgba(91, 140, 255, 0.02));
+  border-color: var(--border-strong);
+}
+.card-primary .label { font-size: 13px; }
+.card-primary .value { font-size: 32px; }
+
+.paper-leaderboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.paper-leaderboard-col .footnote { margin-bottom: 6px; font-weight: 600; }
+.paper-leaderboard-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.paper-leaderboard-list li {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.paper-history-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.select-input {
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 999px;
+  padding: 8px 14px; font-size: 13px; color: var(--text);
+}
+.select-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+tr.paper-row-win td { background: rgba(34, 197, 94, 0.06); }
+tr.paper-row-loss td { background: rgba(244, 63, 94, 0.06); }
+
+.paper-modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(5, 7, 13, 0.72); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.paper-modal {
+  background: var(--panel-solid); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow-card); padding: 22px; max-width: 360px; width: 100%;
+}
+.paper-modal-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+.paper-modal-body { margin-bottom: 18px; }
+.paper-modal-qty-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.paper-modal-qty-row input {
+  flex: 1; text-align: center; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px; font-size: 15px; color: var(--text);
+}
+.paper-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 .panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
