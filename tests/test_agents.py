@@ -43,6 +43,26 @@ def test_risk_agent_vetoes_on_drawdown_breach(synthetic_ohlcv):
     assert opinion.veto is True
 
 
+def test_risk_agent_flags_high_correlation_when_data_is_provided(synthetic_ohlcv):
+    """The correlation-limit check inside RiskAgent was dead code in
+    production: daily_run.py never populated `returns_by_symbol` on the
+    AgentContext, so this branch could never execute. This confirms the
+    check itself works correctly once given real data (the actual wiring
+    is covered separately in test_daily_run_market_hours-style pipeline
+    tests)."""
+    features = FeaturePipeline().build(synthetic_ohlcv)
+    dates = pd.date_range("2024-01-01", periods=50, freq="D")
+    base_returns = pd.Series([0.01, -0.01] * 25, index=dates)
+    # Two symbols with near-identical returns -- avg pairwise correlation
+    # should be very high, well above the 0.85 default limit.
+    returns_by_symbol = {"A": base_returns, "B": base_returns * 1.001}
+    context = AgentContext(symbol="TEST", features=features, returns_by_symbol=returns_by_symbol)
+
+    opinion = RiskAgent().analyze(context)
+    assert opinion.veto is False  # flagged, not a hard veto
+    assert any("correlation" in r.lower() for r in opinion.reasons)
+
+
 def test_risk_agent_no_veto_when_healthy(synthetic_ohlcv):
     features = FeaturePipeline().build(synthetic_ohlcv)
     dates = pd.date_range("2024-01-01", periods=10, freq="D")

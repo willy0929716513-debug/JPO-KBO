@@ -25,6 +25,14 @@ class MomentumStrategy(Strategy):
     def backtest_signals(self, symbol: str, features: pd.DataFrame) -> pd.Series:
         return self._raw_actions(features)
 
+    def stop_target_at(self, features: pd.DataFrame, idx: int, direction: int) -> tuple[float | None, float | None]:
+        row = features.iloc[idx]
+        price = float(row["close"])
+        atr_val = float(row.get("atr_14", 0) or 0)
+        if direction == 1:
+            return price - atr_val * 2, price + atr_val * 3
+        return price + atr_val * 2, price - atr_val * 3
+
     def generate_signal(self, symbol: str, features: pd.DataFrame) -> Signal:
         if len(features) < 60:
             return Signal(symbol, self.name, Action.HOLD, 0.0, float(features["close"].iloc[-1]) if len(features) else 0.0)
@@ -32,19 +40,18 @@ class MomentumStrategy(Strategy):
         row = features.iloc[-1]
         action_val = int(self._raw_actions(features).iloc[-1])
         price = float(row["close"])
-        atr_val = float(row.get("atr_14", 0) or 0)
         roc_val = float(row.get("roc_10", 0) or 0)
 
         if action_val == 1:
             action = Action.BUY
             reasons = ["MACD histogram crossed above zero", f"10-bar ROC={roc_val:.2f}% (positive momentum)"]
             confidence = min(0.5 + abs(roc_val) / 50, 0.85)
-            stop, target = price - atr_val * 2, price + atr_val * 3
+            stop, target = self.stop_target_at(features, len(features) - 1, 1)
         elif action_val == -1:
             action = Action.SELL
             reasons = ["MACD histogram crossed below zero", f"10-bar ROC={roc_val:.2f}% (negative momentum)"]
             confidence = min(0.5 + abs(roc_val) / 50, 0.85)
-            stop, target = price + atr_val * 2, price - atr_val * 3
+            stop, target = self.stop_target_at(features, len(features) - 1, -1)
         else:
             action, reasons, confidence, stop, target = Action.HOLD, ["No fresh momentum crossover"], 0.3, None, None
 

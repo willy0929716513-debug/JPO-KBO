@@ -110,12 +110,21 @@ def risk_of_ruin(win_rate: float, win_loss_ratio: float, risk_per_trade: float, 
 
 class DrawdownCircuitBreaker:
     """Halts new position entries once portfolio drawdown breaches a limit,
-    re-arming only after equity recovers above a smaller threshold."""
+    re-arming only after equity recovers above a smaller threshold.
 
-    def __init__(self, max_drawdown_pct: float = 0.20, reset_drawdown_pct: float = 0.10):
+    `initially_tripped` lets a caller restore whether this breaker was
+    already tripped as of the last time it was checked -- without it, a
+    fresh instance always starts untripped, which defeats the whole
+    "stays halted until it recovers past reset_drawdown_pct" hysteresis
+    the moment the caller doesn't keep the same object alive across calls
+    (e.g. a new instance built on every pipeline run).
+    """
+
+    def __init__(self, max_drawdown_pct: float = 0.20, reset_drawdown_pct: float = 0.10,
+                 initially_tripped: bool = False):
         self.max_drawdown_pct = max_drawdown_pct
         self.reset_drawdown_pct = reset_drawdown_pct
-        self._tripped = False
+        self._tripped = initially_tripped
 
     def update(self, equity_curve: pd.Series) -> bool:
         """Returns True if trading should be halted."""

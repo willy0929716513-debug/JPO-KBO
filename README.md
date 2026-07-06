@@ -53,11 +53,21 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
    趨勢盤時趨勢跟隨與動量權重提高），加權投票得出最終 BUY / SELL / HOLD 訊號、停損與停利價位。
 5. **（選用）機器學習策略**：`src/models/train.py` 可用 XGBoost + LightGBM + RandomForest 投票集成，
    以 TimeSeriesSplit 做出樣本外驗證，訓練完成後可包成 `MLStrategy` 一起加入投票。
-6. **回測驗證**：`BacktestEngine` 將訊號序列轉換成停損反手部位、計入手續費與滑價成本，輸出
-   權益曲線與交易紀錄；`walk_forward_backtest` 做滾動樣本外回測；`monte_carlo_simulate` 對交易報酬
-   重抽樣估計破產機率與報酬分佈，避免對單一歷史路徑過度自信。
-7. **風險管理**：部位大小可選 Kelly / 固定風險比例 / ATR 動態部位；`DrawdownCircuitBreaker` 在權益
-   回撤超過門檻時停止進場；`historical_var` / `conditional_var` 估計尾端風險。
+6. **回測驗證**：`BacktestEngine` 將訊號序列轉換成部位，每次進場都會用該策略自己的
+   `stop_target_at()` 算出停損停利價位並在之後每一根K棒實際檢查有沒有碰到（用當根K棒的高低點，
+   不是只看收盤價），碰到就強制出場，不會放任虧損部位一路抱到訊號反轉為止——這點是 2026-07
+   稽核時修正的：修正前回測引擎完全不管每檔策略顯示的「建議停損/停利」，只靠訊號反轉才平倉，
+   均值回歸這種「小賺快跑」設計的策略因此在回測裡數字特別難看（見
+   `tests/test_backtest_stop_loss.py`）；計入手續費與滑價成本，輸出權益曲線與交易紀錄；
+   `walk_forward_backtest` 做滾動樣本外回測；`monte_carlo_simulate` 對交易報酬重抽樣估計破產機率
+   與報酬分佈，避免對單一歷史路徑過度自信。
+7. **風險管理**：`DrawdownCircuitBreaker` 在權益回撤超過門檻時停止進場，觸發狀態會從上一次執行的
+   結果讀回並延續（`initially_tripped`），不會因為 pipeline 每次重新建立物件就失去「持續鎖住直到
+   回復」的判斷；`LossLimitMonitor` 檢查每日/週/月虧損上限；`RiskAgent` 的相關性檢查現在會拿到
+   當次執行已分析標的的實際報酬率資料。**誠實說明**：Kelly Criterion / 固定風險比例 / ATR 動態
+   部位（`src/risk/position_sizing.py`）、VaR/CVaR（`historical_var`/`conditional_var`）都只是寫好、
+   測試過的獨立函式，**目前沒有被 `daily_run.py` 呼叫**，也不影響任何一檔標的的訊號或信心度——
+   這套系統目前不會建議「這筆該押多少部位」，只給方向與停損停利價位，資金控管完全由你自己決定。
 8. **輸出與自動化**：`src/pipeline/daily_run.py` 串接以上全部流程，將結果寫入
    `docs/data/signals_latest.json`（含每檔標的訊號、市場狀態、策略回測快照）與
    `docs/data/history.json`（近 90 次執行的訊號歷史，供前端畫趨勢圖）。GitHub Actions
@@ -69,11 +79,11 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 |---|---|
 | **統計套利** `src/strategies/statistical_arbitrage.py` | Engle-Granger 共整合檢定（p<0.05 才視為共整合）+ Kalman Filter 動態避險比率，價差 z-score 超過門檻才進場，未通過共整合檢定的配對一律不交易 |
 | **Meta-Labeling** `src/models/labeling.py` | Triple-Barrier 方法（停利/停損/時間三重障礙）替換單純的「N根K棒後漲跌」標籤，`train_meta_labeling_model()` 訓練二階模型判斷主策略訊號是否值得進場 |
-| **風控引擎擴充** `src/risk/limits.py` + `src/risk/portfolio_risk.py` | 每日/週/月虧損上限（`LossLimitMonitor`）、Portfolio 層級 VaR/CVaR、相關性限額、產業/資產類別曝險限額檢查 |
-| **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權 |
+| **風控引擎擴充** `src/risk/limits.py` + `src/risk/portfolio_risk.py` | 每日/週/月虧損上限（`LossLimitMonitor`，已接入）、相關性限額檢查（`RiskAgent` 內，已接入實際報酬率資料）。Portfolio 層級 VaR/CVaR（`historical_var`/`conditional_var`/`portfolio_var`）**寫好、測試過，但 `daily_run.py` 沒有呼叫**，只是可獨立使用的函式庫 |
+| **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權。同樣**只是獨立函式，`daily_run.py` 沒有呼叫** |
 | **模擬執行引擎** `src/execution/` | `simulate_bracket_order` / `simulate_oco_order` / `simulate_trailing_stop`（判斷停利停損哪個先觸發）、`simulate_twap_execution` / `simulate_vwap_execution` / `simulate_pov_execution`（拆單模擬 + 滑價評估） |
 | **輕量 MLOps** `src/mlops/` | `ModelRegistry`（本地 joblib+json 模型版本管理）、`should_promote_challenger`（Champion/Challenger 比較後才換模型）、`population_stability_index` / `ks_test_drift`（特徵飄移偵測） |
-| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）、`PortfolioAgent`（資產類別曝險，可否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD |
+| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD。`PortfolioAgent`（資產類別曝險上限，可否決）**已實作、有單元測試，但 `daily_run.py` 目前組裝 `DecisionEngine` 時沒有把它加進去**，因為它需要「目前投資組合各資產類別權重」這種這套系統目前沒有持久追蹤的資訊，貿然接入容易做出不可靠、依標的分析順序而變的否決 |
 
 擴充後的績效指標（`src/backtest/metrics.py`）：CAGR、Sharpe、Sortino、Calmar、**MAR、Omega、SQN、Alpha/Beta、Information Ratio、Expectancy、Recovery Factor、Rolling Sharpe/Drawdown**。
 
