@@ -10,7 +10,7 @@
 // Relies on SYMBOL_NAMES / ACTION_ZH / fmtNum / effectiveAction from
 // common.js, loaded before this file.
 const PAPER_STORAGE_KEY = "quantDashboardPaperTrading_v1";
-const PAPER_STARTING_CASH = 5_000_000; // virtual TWD
+const PAPER_STARTING_CASH = 10_000_000; // virtual TWD
 const PAPER_MANUAL_DEFAULT_NOTIONAL = 100_000; // suggested size for a manual trade
 const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // fixed virtual lot per auto-followed signal
 
