@@ -122,7 +122,10 @@ function renderPickCards(containerId, signals, emptyMessage) {
           <div class="pick-action badge ${badgeClass(action)}">${ACTION_ZH[action]}</div>
         </div>
       </div>
-      <div class="pick-price">目前價格：<b class="num js-live-price">${fmtNum(s.last_price, 4)}</b> ${marketStatusBadge(s.market_open)}</div>
+      <div class="pick-price">目前價格：<b class="num js-live-price">${fmtNum(s.last_price, 4)}</b>${
+        (s.change_pct === null || s.change_pct === undefined) ? "" :
+        ` <span class="live-change ${s.change_pct >= 0 ? "live-up" : "live-down"}">${s.change_pct >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(s.change_pct), 2)}%</span>`
+      } ${marketStatusBadge(s.market_open)}</div>
       <div class="pick-levels num">
         <span>建議停損：${fmtNum(sig.stop_loss, 4)}</span>
         <span>建議停利：${fmtNum(sig.take_profit, 4)}</span>
