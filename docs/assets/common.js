@@ -99,13 +99,32 @@ function confidenceDots(c) {
   ).join("");
 }
 
-// The multi-agent risk check can veto a technically-strong signal (e.g. a
-// symbol that just hit its drawdown limit) -- this is the single "what
-// should I actually do" answer, folding that veto in so the page never
-// shows two contradicting recommendations for one symbol.
+// The single "what should I actually do" answer for a symbol. Previously
+// this only ever fell back to HOLD on an explicit risk veto, otherwise
+// showing s.signal.final_action -- the raw technical-strategy-combiner
+// output, computed *before* the multi-agent system's own macro/risk-adjusted
+// synthesis (s.decision_engine.action). That let the two disagree: a symbol
+// could show 做空 on every card while the multi-agent decision engine had
+// actually landed on HOLD (e.g. a contrarian-bullish macro lean during
+// extreme fear nearly offsetting a bearish technical lean) -- confusing,
+// and the exact discrepancy a user asked about after seeing Bitcoin marked
+// 做空 while it was rising. Now this always reflects the decision engine's
+// own final call when one exists, falling back to the raw technical signal
+// only for entries that predate decision_engine or otherwise lack it.
 function effectiveAction(s) {
-  const vetoed = s.decision_engine && s.decision_engine.vetoed;
-  return vetoed ? "HOLD" : s.signal.final_action;
+  if (!s.decision_engine) return s.signal.final_action;
+  if (s.decision_engine.vetoed) return "HOLD";
+  return s.decision_engine.action;
+}
+
+// Confidence that matches whatever effectiveAction() is showing -- reading
+// s.signal.confidence (the raw technical confidence) here while the badge
+// shows the multi-agent action would show a percentage that doesn't belong
+// to the displayed action at all.
+function effectiveConfidence(s) {
+  if (!s.decision_engine) return s.signal.confidence;
+  if (s.decision_engine.vetoed) return 0;
+  return s.decision_engine.confidence;
 }
 
 function renderFearGreed(elementId, fg) {
