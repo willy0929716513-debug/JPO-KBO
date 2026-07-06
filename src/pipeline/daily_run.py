@@ -243,10 +243,11 @@ def _load_previous_payload() -> dict:
         return {}
 
 
-def _analyze_pairs(price_cache: dict[str, pd.Series]) -> list[dict]:
+def _analyze_pairs(price_cache: dict[str, pd.Series], errors: list[dict]) -> list[dict]:
     results = []
     strategy = PairsTradingStrategy()
     for symbol_a, symbol_b, asset_class in PAIR_WATCHLIST:
+        pair_label = f"{symbol_a}/{symbol_b}"
         close_a, close_b = price_cache.get(symbol_a), price_cache.get(symbol_b)
         if close_a is None or close_b is None or len(close_a) < 80 or len(close_b) < 80:
             continue
@@ -254,7 +255,8 @@ def _analyze_pairs(price_cache: dict[str, pd.Series]) -> list[dict]:
             signal = strategy.analyze(symbol_a, close_a, symbol_b, close_b)
             results.append({"asset_class": asset_class, **signal.to_dict()})
         except Exception as exc:
-            logger.warning("Pairs analysis failed for %s/%s: %s", symbol_a, symbol_b, exc)
+            logger.warning("Pairs analysis failed for %s: %s", pair_label, exc)
+            errors.append({"symbol": pair_label, "error": str(exc)})
     return results
 
 
@@ -309,7 +311,7 @@ def run_daily_pipeline() -> dict:
                 logger.error("Failed analyzing %s: %s", symbol, exc)
                 errors.append({"symbol": symbol, "error": str(exc), "trace": traceback.format_exc(limit=3)})
 
-    fresh_pairs = _analyze_pairs(price_cache)
+    fresh_pairs = _analyze_pairs(price_cache, errors)
     fresh_pairs_keys = {(p["symbol_a"], p["symbol_b"]) for p in fresh_pairs}
     pairs_signals = fresh_pairs + [
         p for key, p in previous_pairs_by_key.items() if key not in fresh_pairs_keys
