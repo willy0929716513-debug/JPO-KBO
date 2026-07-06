@@ -32,7 +32,13 @@ class CCXTProvider:
     # BTC/USDT and ETH/USDT and are tried in order if the primary fails.
     _DEFAULT_FALLBACK_EXCHANGE_IDS = ("okx", "bybit", "kucoin")
 
-    def __init__(self, exchange_id: str = "binance", use_cache: bool = True, cache_ttl_seconds: int = 300,
+    # Must stay shorter than the pipeline's own update cadence (every ~5
+    # minutes) for the same reason as YFinanceProvider's cache_ttl_seconds
+    # -- see the comment there. 300s used to be harmless (fresh VM per run,
+    # empty cache every time) but now that update_signals.yml self-chains
+    # in a long-lived loop, a TTL equal to or longer than the loop's sleep
+    # interval would let consecutive iterations reuse the same stale price.
+    def __init__(self, exchange_id: str = "binance", use_cache: bool = True, cache_ttl_seconds: int = 200,
                  fallback_exchange_ids: tuple[str, ...] | None = None):
         import ccxt
 
