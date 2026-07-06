@@ -1,13 +1,16 @@
 // Minimal offline support for the PWA "add to home screen" experience.
-// Static app-shell files (HTML/CSS/JS/icons) are cache-first so the app
-// still opens offline; the data JSON files are network-first so you
-// always get the freshest signals when online, falling back to the last
-// cached copy when you don't have a connection. Cross-origin requests
-// (Chart.js CDN, Binance WebSocket, TWSE quotes) are left alone entirely --
-// this worker only ever touches same-origin requests.
-const CACHE_VERSION = "v1";
-const SHELL_CACHE = `app-shell-${CACHE_VERSION}`;
-const DATA_CACHE = `app-data-${CACHE_VERSION}`;
+// Everything same-origin (app shell HTML/CSS/JS/icons *and* data JSON) is
+// network-first: when online you always get the freshest deployed files,
+// and the cache is only ever used as a fallback when the network request
+// fails (i.e. genuinely offline). This intentionally trades a little bit of
+// offline-shell speed for correctness -- a cache-first shell means anyone
+// who ever registered this worker would keep seeing a frozen snapshot of
+// the site forever, since the browser never re-fetches a cached URL once
+// it's cache-first. Cross-origin requests (Chart.js CDN, Binance WebSocket,
+// TWSE quotes) are left alone entirely -- this worker only ever touches
+// same-origin requests.
+const CACHE_VERSION = "v2";
+const APP_CACHE = `app-cache-${CACHE_VERSION}`;
 
 const SHELL_URLS = [
   "./index.html", "./prices.html", "./paper.html",
@@ -20,7 +23,7 @@ const SHELL_URLS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE)
+    caches.open(APP_CACHE)
       .then((cache) => cache.addAll(SHELL_URLS))
       .then(() => self.skipWaiting())
   );
@@ -30,7 +33,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys
-        .filter((key) => key !== SHELL_CACHE && key !== DATA_CACHE)
+        .filter((key) => key !== APP_CACHE)
         .map((key) => caches.delete(key)))
     ).then(() => self.clients.claim())
   );
@@ -41,28 +44,11 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return; // don't touch cross-origin requests
   if (event.request.method !== "GET") return;
 
-  if (url.pathname.includes("/data/")) {
-    event.respondWith(networkFirst(event.request));
-  } else {
-    event.respondWith(cacheFirst(event.request));
-  }
+  event.respondWith(networkFirst(event.request));
 });
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  try {
-    const resp = await fetch(request);
-    const cache = await caches.open(SHELL_CACHE);
-    cache.put(request, resp.clone());
-    return resp;
-  } catch (err) {
-    return cached || Response.error();
-  }
-}
-
 async function networkFirst(request) {
-  const cache = await caches.open(DATA_CACHE);
+  const cache = await caches.open(APP_CACHE);
   try {
     const resp = await fetch(request);
     cache.put(request, resp.clone());
