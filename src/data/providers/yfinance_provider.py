@@ -84,3 +84,49 @@ class YFinanceProvider:
 
     def get_multi_timeframe(self, symbol: str, timeframes: list[str]) -> dict[str, pd.DataFrame]:
         return {tf: self.get_ohlcv(symbol, tf) for tf in timeframes}
+
+    def get_news(self, symbol: str, limit: int = 3) -> list[dict]:
+        """Recent news headlines for a symbol via yfinance's built-in (free,
+        no-key) news endpoint -- lets the dashboard show *why* a stock might
+        be moving, without this project needing its own news API/key.
+
+        Best-effort like the other free-data integrations in this project:
+        Yahoo has changed this endpoint's JSON shape across yfinance
+        versions (older versions returned flat article dicts; the current
+        one nests most fields under a "content" key), and this repo's
+        sandbox has no network access to verify the exact live response
+        shape before shipping. `_extract_news_items` defensively handles
+        both shapes and simply skips anything it can't parse, so a schema
+        mismatch just means an empty news list for that symbol -- it can
+        never break signal generation.
+        """
+        try:
+            import yfinance as yf
+
+            raw = yf.Ticker(symbol).news
+        except Exception as exc:
+            logger.warning("News fetch failed for %s: %s", symbol, exc)
+            return []
+        return _extract_news_items(raw, limit)
+
+
+def _extract_news_items(raw_articles: list, limit: int = 3) -> list[dict]:
+    items = []
+    for article in raw_articles or []:
+        if not isinstance(article, dict):
+            continue
+        content = article.get("content") if isinstance(article.get("content"), dict) else article
+
+        title = content.get("title")
+        url_info = content.get("canonicalUrl") or content.get("clickThroughUrl")
+        link = url_info.get("url") if isinstance(url_info, dict) else content.get("link")
+        provider = content.get("provider")
+        publisher = provider.get("displayName") if isinstance(provider, dict) else content.get("publisher")
+        published_at = content.get("pubDate") or content.get("providerPublishTime")
+
+        if not title or not link:
+            continue
+        items.append({"title": title, "link": link, "publisher": publisher, "published_at": published_at})
+        if len(items) >= limit:
+            break
+    return items

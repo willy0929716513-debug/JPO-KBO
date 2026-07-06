@@ -140,6 +140,10 @@ function renderPickCards(containerId, signals, emptyMessage) {
         SMA20 ${fmtNum(ind.sma_20, 2)} / SMA50 ${fmtNum(ind.sma_50, 2)}｜
         量比 ${fmtNum(ind.volume_ratio, 2)}｜ATR% ${fmtNum(ind.atr_pct, 2)}%
       </div>` : ""}
+      ${s.news && s.news.length > 0 ? `<div class="pick-news-wrap">
+        <div class="footnote">📰 相關新聞</div>
+        ${renderNewsList(s.news)}
+      </div>` : ""}
       <div class="pick-trade-actions" data-symbol="${s.symbol}" data-price="${s.last_price}"></div>
     </div>`;
   }).join("");
