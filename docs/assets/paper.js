@@ -155,40 +155,31 @@ function paperAutoTradeTick(payload) {
     }
   });
 
-  // Open new positions round-robin across asset classes, not in raw array
-  // order -- the Taiwan watchlist is far longer than the US/futures/forex/
-  // crypto lists, so opening strictly in order would let it burn through the
-  // whole virtual cash pool (only ~10 concurrent slots) before other markets
-  // ever got a turn.
-  const queuesByClass = new Map();
-  signals.forEach((s) => {
-    const price = s.last_price;
-    if (!price || state.positions[s.symbol]) return;
+  // Open a position for every current BUY/SELL recommendation -- not just
+  // however many happen to fit at the fixed lot size. Split the remaining
+  // virtual cash evenly across however many new positions are needed this
+  // tick (capped at the normal lot size when there's room to spare), so a
+  // big batch of simultaneous signals still all get followed instead of the
+  // first ones in the list eating the whole cash pool.
+  const candidates = signals.filter((s) => {
+    if (!s.last_price || state.positions[s.symbol]) return false;
     const action = effectiveAction(s);
-    if (action !== "BUY" && action !== "SELL") return;
-    const queue = queuesByClass.get(s.asset_class) || [];
-    queue.push(s);
-    queuesByClass.set(s.asset_class, queue);
+    return action === "BUY" || action === "SELL";
   });
 
-  const queues = Array.from(queuesByClass.values());
-  let openedSomething = true;
-  while (openedSomething) {
-    openedSomething = false;
-    for (const queue of queues) {
-      const s = queue.shift();
-      if (!s) continue;
-      openedSomething = true;
+  if (candidates.length > 0) {
+    const perSlotBudget = Math.min(PAPER_AUTO_TRADE_NOTIONAL, state.cash / candidates.length);
+    candidates.forEach((s) => {
       const price = s.last_price;
       const action = effectiveAction(s);
-      const qty = Math.floor(PAPER_AUTO_TRADE_NOTIONAL / price);
+      const qty = Math.floor(perSlotBudget / price);
       const notional = qty * price;
       if (qty > 0 && notional <= state.cash) {
         state.cash -= notional;
         state.positions[s.symbol] = { side: action === "BUY" ? "long" : "short", qty, avgPrice: price, openedAt: new Date().toISOString(), source: "auto" };
         paperPushHistory(state, { symbol: s.symbol, side: action === "BUY" ? "long" : "short", action: "open", qty, price, source: "auto" });
       }
-    }
+    });
   }
 
   paperSaveState(state);
