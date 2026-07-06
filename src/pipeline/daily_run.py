@@ -173,7 +173,9 @@ def _extract_indicators(features: pd.DataFrame) -> dict:
 
 
 def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snapshot: dict,
-                     sentiment_snapshot: dict) -> dict | None:
+                     sentiment_snapshot: dict, prior_drawdown_tripped: bool = False,
+                     returns_by_symbol: dict[str, pd.Series] | None = None,
+                     asset_class_of: dict[str, str] | None = None) -> dict | None:
     if df.empty or len(df) < 80:
         logger.warning("Skipping %s: insufficient data (%d rows)", symbol, len(df))
         return None
@@ -208,8 +210,14 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     recent_window = min(90, len(trend_equity_full))
     trend_equity_recent = trend_equity_full.tail(recent_window)
 
+    # `initially_tripped` restores whether this symbol's breaker was already
+    # tripped as of the previous run (read from last run's own output payload
+    # by the caller) -- without it, a fresh DrawdownCircuitBreaker() every run
+    # always starts untripped, which silently defeats its whole "stays halted
+    # until equity recovers past reset_drawdown_pct" hysteresis design.
     loss_status = LossLimitMonitor().check(trend_equity_recent)
-    drawdown_breached = DrawdownCircuitBreaker().update(trend_equity_recent)
+    breaker = DrawdownCircuitBreaker(initially_tripped=prior_drawdown_tripped)
+    drawdown_breached = breaker.update(trend_equity_recent)
     risk_status = {
         "current_drawdown_pct": round(max_drawdown(trend_equity_recent) * 100, 2),
         "drawdown_circuit_breaker_tripped": drawdown_breached,
@@ -217,9 +225,10 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     }
 
     decision_engine = DecisionEngine([TechnicalAgent(combiner, RegimeDetector()), MacroAgent(),
-                                       RiskAgent(loss_limit_monitor=LossLimitMonitor())])
+                                       RiskAgent(drawdown_breaker=breaker, loss_limit_monitor=LossLimitMonitor())])
     context = AgentContext(symbol=symbol, features=features, macro_snapshot=macro_snapshot,
-                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity_recent)
+                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity_recent,
+                            returns_by_symbol=returns_by_symbol, asset_class_of=asset_class_of)
     decision = decision_engine.decide(context)
 
     # "漲跌幅" convention used by every stock ticker/app: today's price vs.
@@ -297,6 +306,7 @@ def run_daily_pipeline() -> dict:
     sentiment = SentimentProvider().get_crypto_fear_greed()
     sentiment_snapshot = {"crypto_fear_greed": sentiment}
     macro_snapshot = MacroProvider().get_dxy_and_yields_snapshot()  # returns all-None values if FRED_API_KEY unset
+    asset_class_of = {s: ac for ac, syms in WATCHLIST.items() for s in syms}
 
     for asset_class, symbols in WATCHLIST.items():
         for symbol in symbols:
@@ -315,7 +325,18 @@ def run_daily_pipeline() -> dict:
                 df = _load_ohlcv(symbol, asset_class)
                 if not df.empty:
                     price_cache[symbol] = df["close"]
-                res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot)
+                prior = previous_by_symbol.get(symbol, {})
+                prior_tripped = bool((prior.get("risk_status") or {}).get("drawdown_circuit_breaker_tripped", False))
+                # Correlation check needs every other symbol's returns too, but
+                # this pipeline analyzes one symbol at a time -- use whatever's
+                # accumulated in price_cache so far this run (every symbol
+                # already processed, plus this one) as a practical stand-in for
+                # "the rest of the portfolio" rather than requiring a full
+                # second pass over the watchlist just for this.
+                returns_by_symbol = {s: c.pct_change().dropna() for s, c in price_cache.items()}
+                res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot,
+                                       prior_drawdown_tripped=prior_tripped,
+                                       returns_by_symbol=returns_by_symbol, asset_class_of=asset_class_of)
                 if res:
                     res["market_open"] = market_open
                     results.append(res)

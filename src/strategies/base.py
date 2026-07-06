@@ -64,3 +64,14 @@ class Strategy(ABC):
             sig = self.generate_signal(symbol, window)
             actions.append({"BUY": 1, "SELL": -1, "HOLD": 0}[sig.action.value])
         return pd.Series(actions, index=features.index)
+
+    def stop_target_at(self, features: pd.DataFrame, idx: int, direction: int) -> tuple[float | None, float | None]:
+        """(stop_loss, take_profit) for a hypothetical entry at bar `idx` in
+        `direction` (1 long, -1 short), using the same formula generate_signal()
+        uses for the "建議停損/停利" shown on the dashboard -- so the backtest
+        engine enforces exactly what's displayed instead of holding positions
+        open with no risk control until the raw signal happens to flip.
+        Default: no strategy-specific stop (subclasses override); the backtest
+        engine then just holds until the next opposite signal, as before.
+        """
+        return None, None

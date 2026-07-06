@@ -30,6 +30,14 @@ class TrendFollowingStrategy(Strategy):
     def backtest_signals(self, symbol: str, features: pd.DataFrame) -> pd.Series:
         return self._raw_actions(features)
 
+    def stop_target_at(self, features: pd.DataFrame, idx: int, direction: int) -> tuple[float | None, float | None]:
+        row = features.iloc[idx]
+        price = float(row["close"])
+        atr_val = float(row.get("atr_14", 0) or 0)
+        if direction == 1:
+            return price - atr_val * self.atr_stop_mult, price + atr_val * self.atr_tp_mult
+        return price + atr_val * self.atr_stop_mult, price - atr_val * self.atr_tp_mult
+
     def generate_signal(self, symbol: str, features: pd.DataFrame) -> Signal:
         if len(features) < 60:
             return Signal(symbol, self.name, Action.HOLD, 0.0, float(features["close"].iloc[-1]) if len(features) else 0.0)
@@ -38,7 +46,6 @@ class TrendFollowingStrategy(Strategy):
         actions = self._raw_actions(features)
         action_val = int(actions.iloc[-1])
         price = float(row["close"])
-        atr_val = float(row.get("atr_14", 0) or 0)
         adx_val = float(row.get("adx", 0) or 0)
 
         reasons = []
@@ -49,15 +56,13 @@ class TrendFollowingStrategy(Strategy):
                 f"EMA20 > EMA50 (uptrend)", f"ADX={adx_val:.1f} >= {self.adx_threshold} (strong trend)",
                 "SuperTrend direction bullish",
             ]
-            stop = price - atr_val * self.atr_stop_mult
-            target = price + atr_val * self.atr_tp_mult
+            stop, target = self.stop_target_at(features, len(features) - 1, 1)
         elif action_val == -1:
             action, reasons = Action.SELL, [
                 f"EMA20 < EMA50 (downtrend)", f"ADX={adx_val:.1f} >= {self.adx_threshold} (strong trend)",
                 "SuperTrend direction bearish",
             ]
-            stop = price + atr_val * self.atr_stop_mult
-            target = price - atr_val * self.atr_tp_mult
+            stop, target = self.stop_target_at(features, len(features) - 1, -1)
         else:
             action, reasons, stop, target = Action.HOLD, ["No aligned trend signal (ranging or weak ADX)"], None, None
 

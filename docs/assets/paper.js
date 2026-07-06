@@ -15,6 +15,7 @@ const PAPER_MANUAL_DEFAULT_NOTIONAL = 100_000; // suggested size for a manual tr
 const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // fixed virtual lot per auto-followed signal
 
 let PAPER_LATEST_PRICES = {};
+let PAPER_LATEST_STOPS = {}; // { [symbol]: { stopLoss, takeProfit } } from the dashboard's own recommended levels
 
 function paperEmptyTradeStats() {
   return { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0 };
@@ -113,10 +114,36 @@ function paperRecordEquitySnapshot(state) {
 function paperCacheLatestPrices(payload) {
   (payload.signals || []).forEach((s) => {
     if (typeof s.last_price === "number") PAPER_LATEST_PRICES[s.symbol] = s.last_price;
+    PAPER_LATEST_STOPS[s.symbol] = {
+      stopLoss: s.signal ? s.signal.stop_loss : null,
+      takeProfit: s.signal ? s.signal.take_profit : null,
+    };
   });
-  const state = paperLoadState();
+  let state = paperLoadState();
+  state = paperCheckStopsAndTargets(state);
   paperRecordEquitySnapshot(state);
   paperSaveState(state);
+}
+
+// Force-closes any open position (manual or auto) whose current price has
+// breached its own stored stop-loss/take-profit -- previously nothing in
+// the paper-trading simulator ever checked this, so a position could keep
+// losing well past the "建議停損" shown on its own card with no automatic
+// exit, even though the site prominently displays that level as if it
+// mattered. Runs on every price refresh regardless of the auto-trade
+// toggle, since a manually-opened position deserves the same protection.
+function paperCheckStopsAndTargets(state) {
+  Object.entries(state.positions).forEach(([symbol, pos]) => {
+    if (pos.stopLoss == null && pos.takeProfit == null) return;
+    const price = PAPER_LATEST_PRICES[symbol];
+    if (!price) return;
+    const hitStop = pos.stopLoss != null && (pos.side === "long" ? price <= pos.stopLoss : price >= pos.stopLoss);
+    const hitTarget = pos.takeProfit != null && (pos.side === "long" ? price >= pos.takeProfit : price <= pos.takeProfit);
+    if (hitStop || hitTarget) {
+      state = paperClosePositionAtPrice(symbol, hitStop ? pos.stopLoss : pos.takeProfit, state, hitStop ? "stop_loss" : "take_profit");
+    }
+  });
+  return state;
 }
 
 function paperPushHistory(state, entry) {
@@ -124,7 +151,7 @@ function paperPushHistory(state, entry) {
   state.history = state.history.slice(0, 200);
 }
 
-function paperOpenPosition(symbol, side, price, qty, source) {
+function paperOpenPosition(symbol, side, price, qty, source, stopLoss, takeProfit) {
   if (!price || !qty || qty <= 0) return;
   const state = paperLoadState();
   if (state.positions[symbol]) {
@@ -137,13 +164,20 @@ function paperOpenPosition(symbol, side, price, qty, source) {
     return;
   }
   state.cash -= notional;
-  state.positions[symbol] = { side, qty, avgPrice: price, openedAt: new Date().toISOString(), source };
+  state.positions[symbol] = {
+    side, qty, avgPrice: price, openedAt: new Date().toISOString(), source,
+    stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null,
+  };
   paperPushHistory(state, { symbol, side, action: "open", qty, price, source });
   paperSaveState(state);
   paperRenderAll();
 }
 
-function paperClosePositionAtPrice(symbol, price, state) {
+// closeReason: undefined for a normal signal-flip/manual close, or
+// "stop_loss"/"take_profit" when paperCheckStopsAndTargets forced the exit --
+// shown distinctly in the trade history table so it's clear *why* a position
+// closed, not just that it did.
+function paperClosePositionAtPrice(symbol, price, state, closeReason) {
   const pos = state.positions[symbol];
   if (!pos || !price) return state;
   const pnl = pos.side === "long" ? (price - pos.avgPrice) * pos.qty : (pos.avgPrice - price) * pos.qty;
@@ -159,7 +193,7 @@ function paperClosePositionAtPrice(symbol, price, state) {
     stats[magnitudeKey] += Math.abs(pnl);
   });
 
-  paperPushHistory(state, { symbol, side: pos.side, action: "close", qty: pos.qty, price, pnl, source: pos.source });
+  paperPushHistory(state, { symbol, side: pos.side, action: "close", qty: pos.qty, price, pnl, source: pos.source, closeReason });
   delete state.positions[symbol];
   return state;
 }
@@ -184,6 +218,10 @@ function paperPromptOpen(symbol, side) {
   const sideZh = side === "long" ? "做多" : "做空";
   const name = SYMBOL_NAMES[symbol] || symbol;
   const suggested = Math.max(1, Math.floor(PAPER_MANUAL_DEFAULT_NOTIONAL / price));
+  const stops = PAPER_LATEST_STOPS[symbol] || {};
+  const stopsLine = (stops.stopLoss != null || stops.takeProfit != null)
+    ? `<div class="footnote">將套用建議停損 ${stops.stopLoss != null ? fmtNum(stops.stopLoss, 2) : "-"}／停利 ${stops.takeProfit != null ? fmtNum(stops.takeProfit, 2) : "-"}，碰到會自動平倉</div>`
+    : "";
 
   const overlay = paperShowModal({
     title: `模擬${sideZh}：${name}`,
@@ -196,11 +234,12 @@ function paperPromptOpen(symbol, side) {
         <button type="button" class="pill pill-btn small" data-qty-step="1">＋</button>
       </div>
       <div class="footnote" id="paper-modal-qty-cost"></div>
+      ${stopsLine}
     `,
     onConfirm: (el) => {
       const qty = parseInt(el.querySelector("#paper-modal-qty-input").value, 10);
       if (!qty || qty <= 0) return false;
-      paperOpenPosition(symbol, side, price, qty, "manual");
+      paperOpenPosition(symbol, side, price, qty, "manual", stops.stopLoss, stops.takeProfit);
     },
   });
 
@@ -271,7 +310,10 @@ function paperAutoTradeTick(payload) {
       const notional = qty * price;
       if (qty > 0 && notional <= state.cash) {
         state.cash -= notional;
-        state.positions[s.symbol] = { side: action === "BUY" ? "long" : "short", qty, avgPrice: price, openedAt: new Date().toISOString(), source: "auto" };
+        state.positions[s.symbol] = {
+          side: action === "BUY" ? "long" : "short", qty, avgPrice: price, openedAt: new Date().toISOString(), source: "auto",
+          stopLoss: s.signal.stop_loss ?? null, takeProfit: s.signal.take_profit ?? null,
+        };
         paperPushHistory(state, { symbol: s.symbol, side: action === "BUY" ? "long" : "short", action: "open", qty, price, source: "auto" });
       }
     });
@@ -381,7 +423,7 @@ function paperHistoryRowToCsvFields(h) {
     new Date(h.time).toLocaleString(),
     SYMBOL_NAMES[h.symbol] || h.symbol,
     h.side === "long" ? "做多" : "做空",
-    h.action === "open" ? "開倉" : "平倉",
+    h.action === "open" ? "開倉" : (h.closeReason === "stop_loss" ? "停損出場" : h.closeReason === "take_profit" ? "停利出場" : "平倉"),
     h.qty,
     h.price,
     Math.round(h.qty * h.price),
@@ -532,6 +574,7 @@ function paperRenderDashboardPage() {
           <div class="num">數量 ${pos.qty}｜成本 ${fmtNum(pos.avgPrice, 2)}｜現價 ${fmtNum(cur, 2)}</div>
           <div class="num footnote">開倉金額：${Math.round(pos.avgPrice * pos.qty).toLocaleString()}</div>
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
+          ${(pos.stopLoss != null || pos.takeProfit != null) ? `<div class="num footnote">停損 ${pos.stopLoss != null ? fmtNum(pos.stopLoss, 2) : "-"}｜停利 ${pos.takeProfit != null ? fmtNum(pos.takeProfit, 2) : "-"}（碰到會自動平倉）</div>` : ""}
           <div class="footnote">來源：${pos.source === "auto" ? "自動跟單" : "手動模擬"} · 持有 ${heldDays} 天 · 開倉時間 ${new Date(pos.openedAt).toLocaleString()}</div>
           <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
         </div>`;
@@ -563,7 +606,7 @@ function paperRenderDashboardPage() {
         <td data-label="時間">${new Date(h.time).toLocaleString()}</td>
         <td data-label="標的">${SYMBOL_NAMES[h.symbol] || h.symbol}</td>
         <td data-label="方向">${h.side === "long" ? "做多" : "做空"}</td>
-        <td data-label="動作">${h.action === "open" ? "開倉" : "平倉"}</td>
+        <td data-label="動作">${h.action === "open" ? "開倉" : (h.closeReason === "stop_loss" ? "停損出場" : h.closeReason === "take_profit" ? "停利出場" : "平倉")}</td>
         <td data-label="數量">${h.qty}</td>
         <td data-label="價格">${fmtNum(h.price, 2)}</td>
         <td data-label="金額">${Math.round(h.qty * h.price).toLocaleString()}</td>

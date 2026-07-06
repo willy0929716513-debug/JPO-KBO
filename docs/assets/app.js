@@ -10,7 +10,7 @@ function buildPlainReason(s) {
   if (vetoed) {
     return "⚠️ 風控機制建議暫緩進場（近期虧損或風險超出安全範圍），先觀望比較保險";
   }
-  const action = s.signal.final_action;
+  const action = effectiveAction(s);
   const regimeText = REGIME_ZH[s.regime.state] || "資料不足";
   if (action === "BUY") return `目前${regimeText}，多項技術指標偏多，可考慮找機會分批做多`;
   if (action === "SELL") return `目前${regimeText}，多項技術指標偏空，可考慮找機會分批做空`;
@@ -56,7 +56,7 @@ function updateChangeTrackingAndNotify(payload) {
     const prevAction = previous[s.symbol];
     if (prevAction !== undefined && prevAction !== action) {
       changed.add(s.symbol);
-      if (action !== "HOLD" && s.signal.confidence >= 0.6) {
+      if (action !== "HOLD" && effectiveConfidence(s) >= 0.6) {
         strongNew.push({ symbol: s.symbol, name: SYMBOL_NAMES[s.symbol] || s.symbol, action });
       }
     }
@@ -104,14 +104,14 @@ function renderPickCards(containerId, signals, emptyMessage) {
   const sorted = signals.slice().sort((a, b) => {
     const rank = (s) => (effectiveAction(s) === "HOLD" ? 1 : 0);
     const diff = rank(a) - rank(b);
-    return diff !== 0 ? diff : b.signal.confidence - a.signal.confidence;
+    return diff !== 0 ? diff : effectiveConfidence(b) - effectiveConfidence(a);
   });
 
   const cardsHtml = sorted.map((s, i) => {
     const sig = s.signal;
     const action = effectiveAction(s);
     const name = SYMBOL_NAMES[s.symbol] || s.symbol;
-    const conf = (s.decision_engine && s.decision_engine.vetoed) ? 0 : sig.confidence;
+    const conf = effectiveConfidence(s);
     const ind = s.indicators;
 
     const isExtra = i >= PICK_GRID_COLLAPSE_THRESHOLD;
@@ -190,7 +190,7 @@ function renderTopPicks(payload) {
   const actionable = (payload.signals || [])
     .filter((s) => effectiveAction(s) !== "HOLD")
     .slice()
-    .sort((a, b) => b.signal.confidence - a.signal.confidence)
+    .sort((a, b) => effectiveConfidence(b) - effectiveConfidence(a))
     .slice(0, 5);
 
   panel.style.display = actionable.length > 0 ? "" : "none";

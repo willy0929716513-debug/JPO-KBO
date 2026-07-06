@@ -53,11 +53,21 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
    趨勢盤時趨勢跟隨與動量權重提高），加權投票得出最終 BUY / SELL / HOLD 訊號、停損與停利價位。
 5. **（選用）機器學習策略**：`src/models/train.py` 可用 XGBoost + LightGBM + RandomForest 投票集成，
    以 TimeSeriesSplit 做出樣本外驗證，訓練完成後可包成 `MLStrategy` 一起加入投票。
-6. **回測驗證**：`BacktestEngine` 將訊號序列轉換成停損反手部位、計入手續費與滑價成本，輸出
-   權益曲線與交易紀錄；`walk_forward_backtest` 做滾動樣本外回測；`monte_carlo_simulate` 對交易報酬
-   重抽樣估計破產機率與報酬分佈，避免對單一歷史路徑過度自信。
-7. **風險管理**：部位大小可選 Kelly / 固定風險比例 / ATR 動態部位；`DrawdownCircuitBreaker` 在權益
-   回撤超過門檻時停止進場；`historical_var` / `conditional_var` 估計尾端風險。
+6. **回測驗證**：`BacktestEngine` 將訊號序列轉換成部位，每次進場都會用該策略自己的
+   `stop_target_at()` 算出停損停利價位並在之後每一根K棒實際檢查有沒有碰到（用當根K棒的高低點，
+   不是只看收盤價），碰到就強制出場，不會放任虧損部位一路抱到訊號反轉為止——這點是 2026-07
+   稽核時修正的：修正前回測引擎完全不管每檔策略顯示的「建議停損/停利」，只靠訊號反轉才平倉，
+   均值回歸這種「小賺快跑」設計的策略因此在回測裡數字特別難看（見
+   `tests/test_backtest_stop_loss.py`）；計入手續費與滑價成本，輸出權益曲線與交易紀錄；
+   `walk_forward_backtest` 做滾動樣本外回測；`monte_carlo_simulate` 對交易報酬重抽樣估計破產機率
+   與報酬分佈，避免對單一歷史路徑過度自信。
+7. **風險管理**：`DrawdownCircuitBreaker` 在權益回撤超過門檻時停止進場，觸發狀態會從上一次執行的
+   結果讀回並延續（`initially_tripped`），不會因為 pipeline 每次重新建立物件就失去「持續鎖住直到
+   回復」的判斷；`LossLimitMonitor` 檢查每日/週/月虧損上限；`RiskAgent` 的相關性檢查現在會拿到
+   當次執行已分析標的的實際報酬率資料。**誠實說明**：Kelly Criterion / 固定風險比例 / ATR 動態
+   部位（`src/risk/position_sizing.py`）、VaR/CVaR（`historical_var`/`conditional_var`）都只是寫好、
+   測試過的獨立函式，**目前沒有被 `daily_run.py` 呼叫**，也不影響任何一檔標的的訊號或信心度——
+   這套系統目前不會建議「這筆該押多少部位」，只給方向與停損停利價位，資金控管完全由你自己決定。
 8. **輸出與自動化**：`src/pipeline/daily_run.py` 串接以上全部流程，將結果寫入
    `docs/data/signals_latest.json`（含每檔標的訊號、市場狀態、策略回測快照）與
    `docs/data/history.json`（近 90 次執行的訊號歷史，供前端畫趨勢圖）。GitHub Actions
@@ -69,15 +79,24 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 |---|---|
 | **統計套利** `src/strategies/statistical_arbitrage.py` | Engle-Granger 共整合檢定（p<0.05 才視為共整合）+ Kalman Filter 動態避險比率，價差 z-score 超過門檻才進場，未通過共整合檢定的配對一律不交易 |
 | **Meta-Labeling** `src/models/labeling.py` | Triple-Barrier 方法（停利/停損/時間三重障礙）替換單純的「N根K棒後漲跌」標籤，`train_meta_labeling_model()` 訓練二階模型判斷主策略訊號是否值得進場 |
-| **風控引擎擴充** `src/risk/limits.py` + `src/risk/portfolio_risk.py` | 每日/週/月虧損上限（`LossLimitMonitor`）、Portfolio 層級 VaR/CVaR、相關性限額、產業/資產類別曝險限額檢查 |
-| **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權 |
+| **風控引擎擴充** `src/risk/limits.py` + `src/risk/portfolio_risk.py` | 每日/週/月虧損上限（`LossLimitMonitor`，已接入）、相關性限額檢查（`RiskAgent` 內，已接入實際報酬率資料）。Portfolio 層級 VaR/CVaR（`historical_var`/`conditional_var`/`portfolio_var`）**寫好、測試過，但 `daily_run.py` 沒有呼叫**，只是可獨立使用的函式庫 |
+| **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權。同樣**只是獨立函式，`daily_run.py` 沒有呼叫** |
 | **模擬執行引擎** `src/execution/` | `simulate_bracket_order` / `simulate_oco_order` / `simulate_trailing_stop`（判斷停利停損哪個先觸發）、`simulate_twap_execution` / `simulate_vwap_execution` / `simulate_pov_execution`（拆單模擬 + 滑價評估） |
 | **輕量 MLOps** `src/mlops/` | `ModelRegistry`（本地 joblib+json 模型版本管理）、`should_promote_challenger`（Champion/Challenger 比較後才換模型）、`population_stability_index` / `ks_test_drift`（特徵飄移偵測） |
-| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）、`PortfolioAgent`（資產類別曝險，可否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD |
+| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD。`PortfolioAgent`（資產類別曝險上限，可否決）**已實作、有單元測試，但 `daily_run.py` 目前組裝 `DecisionEngine` 時沒有把它加進去**，因為它需要「目前投資組合各資產類別權重」這種這套系統目前沒有持久追蹤的資訊，貿然接入容易做出不可靠、依標的分析順序而變的否決 |
 
 擴充後的績效指標（`src/backtest/metrics.py`）：CAGR、Sharpe、Sortino、Calmar、**MAR、Omega、SQN、Alpha/Beta、Information Ratio、Expectancy、Recovery Factor、Rolling Sharpe/Drawdown**。
 
 `daily_run.py` 每次執行都會：對每個標的同時跑「策略投票訊號」與「多代理決策」兩種結果，並對 GC=F/SI=F、SPY/QQQ、BTC/ETH 三組配對做統計套利檢定。**風控 Agent 的風險檢查只看最近 90 根K棒的權益曲線**，不會被「這檔標的過去好幾年前曾經有一次大跌」這種久遠歷史錯誤否決今天的訊號（早期版本有這個 bug，已修正，見 `tests/test_risk_windowing_regression.py`）。
+
+**首頁卡片的做多/做空/觀望徽章現在會反映真正的多代理決策，不是只有原始技術訊號（2026-07 修正）**：
+修正前，`docs/assets/common.js` 的 `effectiveAction()` 只有在風控 Agent 明確否決時才顯示觀望，其他時候一律顯示
+`signal.final_action`——也就是純技術面策略投票的原始結果，完全略過 `decision_engine.action`（技術面+總經+風控
+三個 Agent 加權後的真正綜合判斷）。這會導致卡片顯示的訊號跟系統自己算出來的「最終決策」不一致：例如某次比特幣
+技術面偏空，但總經 Agent 因為極度恐慌指數給了反向偏多的看法，兩者加權後多代理決策其實是觀望（信心只有 7%），
+卡片卻顯示做空。現在 `effectiveAction()`／新增的 `effectiveConfidence()` 都會優先讀 `decision_engine.action`/
+`.confidence`，讓卡片徽章、信心度、一句話原因、排序，全部跟系統真正的最終判斷一致；「進階資料」裡的技術面策略
+投票細節維持顯示原始資料不變（那裡本來就是刻意呈現「拆解後」的各別意見，跟這個修正的目的不衝突）。
 
 **儀表板分成兩層**：預設首頁只顯示「今日建議清單」——白話中文卡片，一檔標的一張卡，寫清楚做多/做空/觀望、建議價位、停損停利、一句話原因；上面提到的策略投票細節、多代理意見、統計套利數據、完整回測指標，都收在頁面最下面「🔧 進階資料」可展開區塊裡，預設收合，一般使用者不需要看到。「今日建議清單」內再分成「🇹🇼 台股焦點（主要）」與「🌐 其他市場（輔助參考）」兩區，`WATCHLIST["taiwan"]`（`src/pipeline/daily_run.py`）目前涵蓋 48 檔台股大型權值股（半導體、金融、電子代工、塑化鋼鐵、航運、電信等各產業龍頭），是追蹤標的最多、也是唯一大幅擴充的單一市場；美股/ETF/黃金/原油/外匯/加密貨幣維持原本的小規模輔助清單。每張卡片除了買賣建議，也會顯示一行技術指標細節（RSI(14)、MACD 柱狀圖、SMA20/SMA50、量比、ATR%），資料來自 `_extract_indicators()`（`src/pipeline/daily_run.py`），從既有的 300+ 特徵矩陣中挑出這幾個最常用的指標，不需要另外重算。
 
@@ -165,6 +184,10 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
   每列依賺賠加淡淡的綠/紅底色；可以匯出成 CSV（含 UTF-8 BOM，Excel 開中文不會變亂碼）。
 - **自訂彈窗**：開倉數量輸入、重置帳戶確認，都改成頁面內的深色彈窗（含 +/- 數量按鈕跟即時金額試算），
   不再跳出跟深色主題不搭的瀏覽器原生 `prompt()`/`confirm()` 視窗。
+- **停損停利會真的執行（2026-07 修正）**：開倉（手動或自動跟單）時會一併存下該標的當時的建議停損/停利價，
+  之後每次資料更新都會檢查目前價格有沒有碰到，碰到就自動強制平倉，交易紀錄表的「動作」欄會標成「停損出場」
+  /「停利出場」跟一般平倉區分開來。**修正前這個檢查完全不存在**：不管手動還是自動跟單開的倉位，都只會在
+  訊號反轉時才平倉，可能虧超過卡片上顯示的「建議停損」很多都不會有任何保護。
 
 ## 個股相關新聞（讓訊號跟時事掛勾）
 

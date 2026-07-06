@@ -29,6 +29,14 @@ class BreakoutStrategy(Strategy):
     def backtest_signals(self, symbol: str, features: pd.DataFrame) -> pd.Series:
         return self._raw_actions(features)
 
+    def stop_target_at(self, features: pd.DataFrame, idx: int, direction: int) -> tuple[float | None, float | None]:
+        row = features.iloc[idx]
+        price = float(row["close"])
+        atr_val = float(row.get("atr_14", 0) or 0)
+        if direction == 1:
+            return price - atr_val * 2, price + atr_val * 4
+        return price + atr_val * 2, price - atr_val * 4
+
     def generate_signal(self, symbol: str, features: pd.DataFrame) -> Signal:
         if len(features) < 60:
             return Signal(symbol, self.name, Action.HOLD, 0.0, float(features["close"].iloc[-1]) if len(features) else 0.0)
@@ -36,19 +44,18 @@ class BreakoutStrategy(Strategy):
         row = features.iloc[-1]
         action_val = int(self._raw_actions(features).iloc[-1])
         price = float(row["close"])
-        atr_val = float(row.get("atr_14", 0) or 0)
         vol_ratio = float(row.get("volume_ratio", 1) or 1)
 
         if action_val == 1:
             action = Action.BUY
             reasons = ["Close broke above 20-bar Donchian upper channel", f"Volume ratio {vol_ratio:.2f}x average (confirmed)"]
             confidence = min(0.55 + (vol_ratio - self.volume_confirm_ratio) / 10, 0.9)
-            stop, target = price - atr_val * 2, price + atr_val * 4
+            stop, target = self.stop_target_at(features, len(features) - 1, 1)
         elif action_val == -1:
             action = Action.SELL
             reasons = ["Close broke below 20-bar Donchian lower channel", f"Volume ratio {vol_ratio:.2f}x average (confirmed)"]
             confidence = min(0.55 + (vol_ratio - self.volume_confirm_ratio) / 10, 0.9)
-            stop, target = price + atr_val * 2, price - atr_val * 4
+            stop, target = self.stop_target_at(features, len(features) - 1, -1)
         else:
             action, reasons, confidence, stop, target = Action.HOLD, ["No confirmed channel breakout"], 0.3, None, None
 
