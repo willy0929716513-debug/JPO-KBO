@@ -1,44 +1,47 @@
 name: Update Trading Signals
 
-# Intended to run every 5 minutes, around the clock. This used to be a
-# narrow "US market hours" window, which completely missed e.g. Taiwan's
-# trading session. Now the pipeline itself (src/data/market_hours.py)
-# checks per-symbol whether that symbol's market is actually open and
-# skips/carries-forward the ones that aren't, so running this frequently
-# and continuously is cheap: closed markets are never re-analyzed, only
-# re-tagged.
+# Self-chaining continuous updater: each run queues its own successor
+# (via `gh workflow run`, using the built-in GITHUB_TOKEN -- no external
+# secrets needed) before it starts, then loops the pipeline every 5
+# minutes for ~5h40m before naturally ending. Because the successor is
+# already queued behind this run in the same concurrency group, it starts
+# immediately when this run finishes, with no gap.
 #
-# IMPORTANT, GitHub-side limitation (not fixable from this repo): GitHub
-# does not guarantee `schedule:` timing. Their own docs warn that schedule
-# events "can be delayed during periods of high load", especially "at the
-# start of every hour" -- and "*/5 * * * *" (firing on round 5-minute
-# marks) is the single most popular cron pattern on the platform, so it
-# queues behind everyone else doing the same thing. Measured from this
-# repo's own run history: actual cadence was 60-250 minutes apart, not 5,
-# despite this exact config. Offsetting away from round marks (below) is
-# GitHub's own recommended mitigation and measurably helps in community
-# reports, but there is no way to *guarantee* 5-minute delivery through
-# `schedule:` alone -- a truly reliable 5-minute cadence would require an
-# external scheduler (e.g. a free cron-ping service) calling this
-# workflow's `workflow_dispatch` via the GitHub REST API with a
-# repo-scoped token, which is outside what this repo's automation can set
-# up on its own (see README).
+# Why not just `schedule: */5 * * * *`? GitHub does not guarantee
+# `schedule:` timing -- their own docs warn schedule events "can be
+# delayed during periods of high load", especially "at the start of every
+# hour", and "*/5 * * * *" is the single most popular cron pattern on the
+# platform, so it queues behind everyone else doing the same thing.
+# Measured from this repo's own run history: actual cadence was 60-250
+# minutes apart, not 5, despite that exact config. Once bootstrapped, this
+# self-chaining loop no longer depends on `schedule:` firing on time at
+# all -- only the very first link needs a trigger, and after that each
+# link queues the next one itself from inside a running job.
+#
+# The low-frequency `schedule:` below exists purely as a self-healing
+# safety net for the rare case the chain fully breaks (e.g. a run gets
+# force-cancelled before its "queue next" step, or a runner-level crash) --
+# it bootstraps a fresh chain at most a few hours later. It intentionally
+# is NOT every 5 minutes, since two independent chains overlapping for a
+# while just wastes a little Actions time (free/unlimited on this public
+# repo), not correctness -- concurrency below still serializes them.
 on:
   schedule:
-    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    - cron: "13 */6 * * *"  # safety net only, see comment above
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  actions: write # needed for this job to queue its own successor run
 
 concurrency:
   group: update-signals
-  cancel-in-progress: false  # queue overlapping runs rather than cancel one mid-write
+  cancel-in-progress: false # a queued successor waits for the current run to fully finish, however it ends
 
 jobs:
   update-signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # watchlist grew to ~60 symbols (48 Taiwan large-caps + others); more headroom than the original 8
+    timeout-minutes: 355 # GitHub's own per-job hard cap is 360 minutes; stay safely under it
     steps:
       - uses: actions/checkout@v4
 
@@ -50,19 +53,33 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run signal pipeline
+      - name: Run pipeline every 5 minutes for ~5h40m
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scripts/run_pipeline.py
-
-      - name: Commit updated signals
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/data/
-          git diff --cached --quiet && echo "No changes to commit" || git commit -m "chore: update trading signals [skip ci]"
-          git pull --rebase origin main
-          git push
+          end_time=$(( $(date +%s) + 340 * 60 ))
+          while [ "$(date +%s)" -lt "$end_time" ]; do
+            python scripts/run_pipeline.py || echo "Pipeline run failed this tick, will retry next tick"
+            git add docs/data/
+            if git diff --cached --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "chore: update trading signals [skip ci]"
+              git pull --rebase origin main
+              git push
+            fi
+            sleep 300
+          done
+
+      # Runs even if the loop above errored out, so the chain keeps going
+      # instead of silently dying until the next schedule safety-net tick.
+      - name: Queue the next link in the chain
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update_signals.yml --ref main
