@@ -279,13 +279,15 @@ function paperRenderDashboardPage() {
   if (positionsEl) {
     const entries = Object.entries(state.positions);
     if (entries.length === 0) {
+      positionsEl.className = "";
       positionsEl.innerHTML = `<p class="footnote">目前沒有模擬持倉。可以到「今日建議」頁面針對個股點「模擬做多/做空」，或開啟下面的自動跟單。</p>`;
     } else {
-      positionsEl.innerHTML = entries.map(([symbol, pos]) => {
+      const cardsHtml = entries.map(([symbol, pos], i) => {
         const cur = PAPER_LATEST_PRICES[symbol];
         const pnl = paperUnrealizedPnl(pos, cur);
         const pnlClass = pnl >= 0 ? "live-up" : "live-down";
-        return `<div class="price-card">
+        const isExtra = i >= PICK_GRID_COLLAPSE_THRESHOLD;
+        return `<div class="price-card${isExtra ? " pick-card-extra" : ""}" ${isExtra ? "hidden" : ""}>
           <div class="price-card-head">
             <div class="pick-name">${SYMBOL_NAMES[symbol] || symbol} <span class="pick-symbol">${symbol}</span></div>
             <span class="badge ${pos.side === "long" ? "badge-buy" : "badge-sell"}">${pos.side === "long" ? "做多" : "做空"}</span>
@@ -297,7 +299,12 @@ function paperRenderDashboardPage() {
           <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
         </div>`;
       }).join("");
+      const toggleHtml = entries.length > PICK_GRID_COLLAPSE_THRESHOLD
+        ? `<button type="button" class="pick-grid-toggle">展開查看全部 ${entries.length} 檔 ▾</button>`
+        : "";
       positionsEl.className = "paper-positions-grid";
+      positionsEl.innerHTML = cardsHtml + toggleHtml;
+      if (typeof wirePickGridToggle === "function") wirePickGridToggle(positionsEl);
     }
   }
 
