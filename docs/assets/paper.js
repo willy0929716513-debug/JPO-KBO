@@ -185,7 +185,7 @@ function renderTradeButtons(scopeEl) {
       const pnl = paperUnrealizedPnl(pos, cur);
       const pnlClass = pnl >= 0 ? "live-up" : "live-down";
       el.innerHTML = `<div class="paper-position-badge">
-        <span>模擬持倉：${pos.side === "long" ? "做多" : "做空"} ${pos.qty} 單位 @ ${fmtNum(pos.avgPrice, 2)}</span>
+        <span>模擬持倉：${pos.side === "long" ? "做多" : "做空"} ${pos.qty} 單位 @ ${fmtNum(pos.avgPrice, 2)}（金額 ${Math.round(pos.avgPrice * pos.qty).toLocaleString()}）</span>
         <span class="${pnlClass}">未實現損益 ${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</span>
         <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
       </div>`;
@@ -272,6 +272,7 @@ function paperRenderDashboardPage() {
             <span class="badge ${pos.side === "long" ? "badge-buy" : "badge-sell"}">${pos.side === "long" ? "做多" : "做空"}</span>
           </div>
           <div class="num">數量 ${pos.qty}｜成本 ${fmtNum(pos.avgPrice, 2)}｜現價 ${fmtNum(cur, 2)}</div>
+          <div class="num footnote">開倉金額：${Math.round(pos.avgPrice * pos.qty).toLocaleString()}</div>
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
           <div class="footnote">來源：${pos.source === "auto" ? "自動跟單" : "手動模擬"} · 開倉時間 ${new Date(pos.openedAt).toLocaleString()}</div>
           <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
@@ -290,10 +291,11 @@ function paperRenderDashboardPage() {
       <td data-label="動作">${h.action === "open" ? "開倉" : "平倉"}</td>
       <td data-label="數量">${h.qty}</td>
       <td data-label="價格">${fmtNum(h.price, 2)}</td>
+      <td data-label="金額">${Math.round(h.qty * h.price).toLocaleString()}</td>
       <td data-label="損益">${h.pnl === undefined ? "-" : `${h.pnl >= 0 ? "+" : ""}${fmtNum(h.pnl, 0)}`}</td>
       <td data-label="來源">${h.source === "auto" ? "自動跟單" : "手動"}</td>
     </tr>`).join("");
-    historyEl.innerHTML = rows || `<tr><td colspan="8">尚無交易紀錄</td></tr>`;
+    historyEl.innerHTML = rows || `<tr><td colspan="9">尚無交易紀錄</td></tr>`;
   }
 }
 

@@ -1,15 +1,31 @@
 name: Update Trading Signals
 
-# Runs every 5 minutes, around the clock -- GitHub Actions' shortest
-# supported schedule interval. This used to be a narrow "US market hours"
-# window, which completely missed e.g. Taiwan's trading session. Now the
-# pipeline itself (src/data/market_hours.py) checks per-symbol whether that
-# symbol's market is actually open and skips/carries-forward the ones that
-# aren't, so running this frequently and continuously is cheap: closed
-# markets are never re-analyzed, only re-tagged.
+# Intended to run every 5 minutes, around the clock. This used to be a
+# narrow "US market hours" window, which completely missed e.g. Taiwan's
+# trading session. Now the pipeline itself (src/data/market_hours.py)
+# checks per-symbol whether that symbol's market is actually open and
+# skips/carries-forward the ones that aren't, so running this frequently
+# and continuously is cheap: closed markets are never re-analyzed, only
+# re-tagged.
+#
+# IMPORTANT, GitHub-side limitation (not fixable from this repo): GitHub
+# does not guarantee `schedule:` timing. Their own docs warn that schedule
+# events "can be delayed during periods of high load", especially "at the
+# start of every hour" -- and "*/5 * * * *" (firing on round 5-minute
+# marks) is the single most popular cron pattern on the platform, so it
+# queues behind everyone else doing the same thing. Measured from this
+# repo's own run history: actual cadence was 60-250 minutes apart, not 5,
+# despite this exact config. Offsetting away from round marks (below) is
+# GitHub's own recommended mitigation and measurably helps in community
+# reports, but there is no way to *guarantee* 5-minute delivery through
+# `schedule:` alone -- a truly reliable 5-minute cadence would require an
+# external scheduler (e.g. a free cron-ping service) calling this
+# workflow's `workflow_dispatch` via the GitHub REST API with a
+# repo-scoped token, which is outside what this repo's automation can set
+# up on its own (see README).
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
   workflow_dispatch: {}
 
 permissions:

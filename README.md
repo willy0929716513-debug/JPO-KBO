@@ -101,9 +101,19 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
   WebSocket（`wss://stream.binance.com`），**真正逐筆即時更新**，不需要任何金鑰，也不經過 GitHub Actions。
 - **股票 / 黃金 / 白銀 / 原油 / 外匯**：免費資料源（Yahoo Finance）沒有提供真正的即時逐筆報價（本身就有
   15-20 分鐘延遲），且瀏覽器無法直接跨網域請求 Yahoo 的 API（會被 CORS 政策擋掉）。這些標的改為
-  透過 `.github/workflows/update_signals.yml`**每 5 分鐘自動跑一次**（GitHub Actions 排程支援的最短間隔），
+  透過 `.github/workflows/update_signals.yml`**設定為每 5 分鐘自動跑一次**（GitHub Actions 排程支援的最短間隔），
   儀表板本身也每 60 秒自動重新讀取一次最新資料（不用手動按重新整理）。要做到真正逐秒即時，需要付費資料源
   （見上方「未實作」表格）。
+  **誠實說明一個 GitHub 平台本身的限制**：`schedule:` 排程只是「設定」每 5 分鐘觸發一次，GitHub 官方文件明白寫著
+  排程事件在系統負載高時會延遲，尤其是整點附近；而 `*/5 * * * *`（在每個 5 分鐘整數點觸發）剛好是全 GitHub 上
+  最多人用的排程寫法，等於跟全世界的repo一起排隊。實測這個 repo 過去的真實執行間隔是 **60-250 分鐘一次，不是 5 分鐘**
+  （用 `mcp__github__actions_list` 或 Actions 頁面自己看 `update_signals.yml` 的執行紀錄就能驗證）。這不是程式碼的
+  bug，是 GitHub Actions 排程系統本身的已知限制，無法從這個 repo 內部完全解決。已經做的緩解措施：把 cron 改成
+  `3,8,13,18,23,28,33,38,43,48,53,58 * * * *`（避開整數點，這是 GitHub 官方建議的做法），實務上應該能降低延遲，
+  但**不保證變回真正的 5 分鐘一次**。如果需要更穩定的頻率，真正可靠的做法是另外架一個外部排程服務（例如免費的
+  cron-job.org）、每 5 分鐘呼叫一次 GitHub REST API 的 `workflow_dispatch` endpoint 來觸發這個 workflow——但這需要
+  你自己申請一組有 `actions:write` 權限的 Personal Access Token 並設定在該外部服務裡，這部分需要你自己操作
+  （不是我能從這個 repo 裡直接幫你設定的東西）。
 - **台股（嘗試提供真即時報價）** `common.js` 的 `startTaiwanLiveQuotes()`：會嘗試直接連線 TWSE 自己的公開報價
   API（`mis.twse.com.tw`，無需金鑰），每 15 秒輪詢一次，成功的話會直接更新台股卡片上的價格數字（閃綠/閃紅提示漲跌），
   不用等 5 分鐘的排程。**這個 API 是否對外開放 CORS 是不保證的行為，本機開發環境的網路政策擋住了對它的連線測試，
@@ -122,7 +132,7 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
 - **即時價格總覽頁** `docs/prices.html`：另開一頁，把所有追蹤的標的依「台股」「美股/ETF」「期貨/商品」「外匯」分類顯示，
   加密貨幣一樣是真正即時 WebSocket，其他類別顯示最新價格、漲跌幅（跟上一次更新比較）、開盤狀態徽章。從主頁右上角
   「💹 即時價格總覽」可以連過去。
-- **「重新整理」按鈕的實際行為**：按下去只會重新抓取 `docs/data/signals_latest.json`（GitHub Actions 每 5 分鐘產生的最新結果），
+- **「重新整理」按鈕的實際行為**：按下去只會重新抓取 `docs/data/signals_latest.json`（GitHub Actions 產生的最新結果，實際更新間隔請見上方的誠實說明），
   **不會**在瀏覽器裡當場重新跑一次策略運算。這是因為 GitHub Pages 是純靜態網站，沒有後端伺服器可以即時執行 Python；
   唯一能觸發真正重算的方式是 GitHub Actions 排程或手動 `workflow_dispatch`，而在瀏覽器端安全地觸發這件事需要一組有寫入
   權限的 GitHub 憑證——把它放進前端 JavaScript 等於公開給任何訪客，是不能接受的安全風險，所以沒有這樣做。實務上兩者
