@@ -10,7 +10,7 @@
 // Relies on SYMBOL_NAMES / ACTION_ZH / fmtNum / effectiveAction from
 // common.js, loaded before this file.
 const PAPER_STORAGE_KEY = "quantDashboardPaperTrading_v1";
-const PAPER_STARTING_CASH = 5_000_000; // virtual TWD
+const PAPER_STARTING_CASH = 10_000_000; // virtual TWD
 const PAPER_MANUAL_DEFAULT_NOTIONAL = 100_000; // suggested size for a manual trade
 const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // fixed virtual lot per auto-followed signal
 
@@ -141,18 +141,46 @@ function paperAutoTradeTick(payload) {
   let state = paperLoadState();
   if (!state.autoTradeEnabled) return;
 
-  (payload.signals || []).forEach((s) => {
+  const signals = payload.signals || [];
+
+  signals.forEach((s) => {
     const price = s.last_price;
     if (!price) return;
-    const action = effectiveAction(s);
     const existing = state.positions[s.symbol];
+    if (!existing || existing.source !== "auto") return;
+    const action = effectiveAction(s);
+    const wantSide = action === "BUY" ? "long" : action === "SELL" ? "short" : null;
+    if (wantSide !== existing.side) {
+      state = paperClosePositionAtPrice(s.symbol, price, state);
+    }
+  });
 
-    if (existing && existing.source === "auto") {
-      const wantSide = action === "BUY" ? "long" : action === "SELL" ? "short" : null;
-      if (wantSide !== existing.side) {
-        state = paperClosePositionAtPrice(s.symbol, price, state);
-      }
-    } else if (!existing && (action === "BUY" || action === "SELL")) {
+  // Open new positions round-robin across asset classes, not in raw array
+  // order -- the Taiwan watchlist is far longer than the US/futures/forex/
+  // crypto lists, so opening strictly in order would let it burn through the
+  // whole virtual cash pool (only ~10 concurrent slots) before other markets
+  // ever got a turn.
+  const queuesByClass = new Map();
+  signals.forEach((s) => {
+    const price = s.last_price;
+    if (!price || state.positions[s.symbol]) return;
+    const action = effectiveAction(s);
+    if (action !== "BUY" && action !== "SELL") return;
+    const queue = queuesByClass.get(s.asset_class) || [];
+    queue.push(s);
+    queuesByClass.set(s.asset_class, queue);
+  });
+
+  const queues = Array.from(queuesByClass.values());
+  let openedSomething = true;
+  while (openedSomething) {
+    openedSomething = false;
+    for (const queue of queues) {
+      const s = queue.shift();
+      if (!s) continue;
+      openedSomething = true;
+      const price = s.last_price;
+      const action = effectiveAction(s);
       const qty = Math.floor(PAPER_AUTO_TRADE_NOTIONAL / price);
       const notional = qty * price;
       if (qty > 0 && notional <= state.cash) {
@@ -161,7 +189,7 @@ function paperAutoTradeTick(payload) {
         paperPushHistory(state, { symbol: s.symbol, side: action === "BUY" ? "long" : "short", action: "open", qty, price, source: "auto" });
       }
     }
-  });
+  }
 
   paperSaveState(state);
 }
