@@ -27,7 +27,18 @@ _PERIOD_FOR_INTERVAL = {
 class YFinanceProvider:
     """Fetches OHLCV bars for stocks / ETF / gold / silver / oil / FX."""
 
-    def __init__(self, use_cache: bool = True, cache_ttl_seconds: int = 900):
+    # Must stay shorter than the pipeline's own update cadence (every ~5
+    # minutes, see .github/workflows/update_signals.yml). This cache was
+    # originally harmless in production: every scheduled run used to start
+    # on a brand-new GitHub Actions VM with an empty cache directory, so a
+    # long TTL never actually got hit. Once update_signals.yml became a
+    # single long-lived self-chaining job that loops internally with
+    # `sleep 300` instead of restarting fresh each time, this on-disk cache
+    # started persisting *within* that loop -- and the old 900s (15-minute)
+    # TTL made 2-3 consecutive 5-minute loop iterations reuse the exact
+    # same cached price, showing up on the dashboard as a stuck "0%"
+    # change even while the market was clearly moving.
+    def __init__(self, use_cache: bool = True, cache_ttl_seconds: int = 200):
         self.cache = ParquetCache(ttl_seconds=cache_ttl_seconds) if use_cache else None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8))
