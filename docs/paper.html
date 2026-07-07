@@ -83,7 +83,8 @@
           <input type="checkbox" id="paper-auto-toggle" onchange="paperSetAutoTrade(this.checked)" />
           <span class="paper-switch-track"></span>
         </label>
-        自動跟單：開啟後，系統每次更新建議清單時，會自動幫你模擬開倉/平倉——只要有做多/做空建議就會跟，虛擬資金會平均分配給當下所有建議，不會影響你手動開的倉位。
+        自動跟單：開啟後，系統每次更新建議清單時，會自動幫你模擬開倉/平倉——只跟信心度夠高、且該策略在這檔標的上歷史績效不差的建議，
+        虛擬資金依信心度高低分配（信心度越高分配越多），不會影響你手動開的倉位。
         這是純瀏覽器端的版本，只有在你開著這個網頁分頁時才會運作；不用開網頁也能跟單的版本在 <a href="auto-trade.html">🤖 24小時自動跟單</a>。
       </div>
       <button class="pill pill-btn danger" onclick="paperResetState()">🗑️ 重置模擬帳戶</button>

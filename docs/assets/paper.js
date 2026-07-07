@@ -12,7 +12,12 @@
 const PAPER_STORAGE_KEY = "quantDashboardPaperTrading_v1";
 const PAPER_STARTING_CASH = 10_000_000; // virtual TWD
 const PAPER_MANUAL_DEFAULT_NOTIONAL = 100_000; // suggested size for a manual trade
-const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // fixed virtual lot per auto-followed signal
+const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // per-symbol cap per auto-followed signal
+// Per user request: "不要盲目下單，要經過分析考慮" -- calibrated against real
+// production decision_engine.confidence values (see src/pipeline/auto_trader.py
+// for the same constant and full reasoning) rather than picked round; the
+// combined multi-agent confidence rarely exceeds ~0.3 for actionable signals.
+const PAPER_AUTO_TRADE_MIN_CONFIDENCE = 0.20;
 
 let PAPER_LATEST_PRICES = {};
 let PAPER_LATEST_STOPS = {}; // { [symbol]: { stopLoss, takeProfit } } from the dashboard's own recommended levels
@@ -266,9 +271,31 @@ function paperSetAutoTrade(enabled) {
   paperSaveState(state);
 }
 
-// Follows the dashboard's own recommendations: opens a fixed-size virtual
-// long/short when a symbol newly signals BUY/SELL, and closes it once that
-// symbol's signal flips or drops back to HOLD. Only touches positions this
+// Among a symbol's individual strategy votes that agree with the direction
+// of `action`, finds whichever strategy is actually driving the recommendation
+// (largest weight*confidence) and returns that strategy's own historical
+// profit_factor for this exact symbol -- so a live BUY/SELL crossing the
+// combined threshold can still be skipped if the strategy behind it has a
+// known-bad track record here (e.g. mean-reversion on a symbol that's mostly
+// trended for years). Returns null when there's not enough information to
+// judge (never blocks a trade just because backtest data is missing).
+function dominantStrategyProfitFactor(s, action) {
+  const direction = action === "BUY" ? 1 : action === "SELL" ? -1 : null;
+  if (direction === null) return null;
+  const votes = (s.signal && s.signal.votes) || [];
+  const dirOf = (a) => (a === "BUY" ? 1 : a === "SELL" ? -1 : 0);
+  const agreeing = votes.filter((v) => dirOf(v.action) === direction);
+  if (agreeing.length === 0) return null;
+  const dominant = agreeing.reduce((best, v) =>
+    (v.weight ?? 1) * (v.confidence ?? 0) > (best.weight ?? 1) * (best.confidence ?? 0) ? v : best
+  );
+  const metrics = s.backtest && s.backtest[dominant.strategy];
+  return metrics ? metrics.profit_factor : null;
+}
+
+// Follows the dashboard's own recommendations: opens a virtual long/short
+// when a symbol newly signals BUY/SELL, and closes it once that symbol's
+// signal flips or drops back to HOLD. Only touches positions this
 // auto-trader itself opened (source === "auto") so it never interferes
 // with a manually-opened position on the same symbol.
 function paperAutoTradeTick(payload) {
@@ -289,24 +316,40 @@ function paperAutoTradeTick(payload) {
     }
   });
 
-  // Open a position for every current BUY/SELL recommendation -- not just
-  // however many happen to fit at the fixed lot size. Split the remaining
-  // virtual cash evenly across however many new positions are needed this
-  // tick (capped at the normal lot size when there's room to spare), so a
-  // big batch of simultaneous signals still all get followed instead of the
-  // first ones in the list eating the whole cash pool.
+  // Candidate filtering -- "分析考慮，不要盲目下單": a raw BUY/SELL crossing
+  // the combined threshold isn't enough on its own. Require (1) confidence
+  // above PAPER_AUTO_TRADE_MIN_CONFIDENCE (skip the weakest borderline calls)
+  // and (2) the strategy actually driving the recommendation to have a
+  // historically profitable (>=1.0) track record for this exact symbol.
   const candidates = signals.filter((s) => {
     if (!s.last_price || state.positions[s.symbol]) return false;
     const action = effectiveAction(s);
-    return action === "BUY" || action === "SELL";
+    if (action !== "BUY" && action !== "SELL") return false;
+    if (effectiveConfidence(s) < PAPER_AUTO_TRADE_MIN_CONFIDENCE) return false;
+    const pf = dominantStrategyProfitFactor(s, action);
+    if (pf !== null && pf < 1.0) return false;
+    return true;
   });
 
   if (candidates.length > 0) {
-    const perSlotBudget = Math.min(PAPER_AUTO_TRADE_NOTIONAL, state.cash / candidates.length);
+    // Position size scales with confidence instead of splitting cash flat
+    // across every candidate -- a stronger signal earns a bigger bet, a
+    // barely-qualifying one gets a smaller bet, both still capped at
+    // PAPER_AUTO_TRADE_NOTIONAL so one very-confident symbol can't swallow
+    // the whole account. Shares are computed against a snapshot of cash
+    // taken before this loop, not the live balance (which shrinks as
+    // earlier candidates spend it) -- otherwise later candidates in the
+    // same batch would get a shrinking budget regardless of their own
+    // confidence.
+    const totalConfidence = candidates.reduce((sum, s) => sum + effectiveConfidence(s), 0);
+    const availableCash = state.cash;
     candidates.forEach((s) => {
       const price = s.last_price;
       const action = effectiveAction(s);
-      const qty = Math.floor(perSlotBudget / price);
+      const confidence = effectiveConfidence(s);
+      const share = totalConfidence > 0 ? confidence / totalConfidence : 1 / candidates.length;
+      const budget = Math.min(availableCash * share, PAPER_AUTO_TRADE_NOTIONAL);
+      const qty = Math.floor(budget / price);
       const notional = qty * price;
       if (qty > 0 && notional <= state.cash) {
         state.cash -= notional;
