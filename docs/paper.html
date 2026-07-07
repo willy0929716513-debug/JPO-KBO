@@ -57,45 +57,16 @@
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
         <a href="index.html" class="pill">← 回今日建議</a>
         <a href="prices.html" class="pill">💹 即時價格總覽 →</a>
+        <a href="auto-trade.html" class="pill">🤖 24小時自動跟單 →</a>
       </div>
     </div>
   </header>
 
   <main class="container">
     <section class="disclaimer">
-      ⚠️ 這整套都是模擬練習功能，不會真的下單、也不會花到真錢。下面分成兩個獨立帳戶：「24小時自動跟單」是伺服器端執行，
-      不需要你開著網頁，資料存在雲端每次系統更新都會前進一步；「瀏覽器練習帳戶」（手動模擬 + 選用的自動跟單）純前端
-      JavaScript + 這個瀏覽器的 localStorage，換裝置、換瀏覽器或清除網站資料都會重置。
-    </section>
-
-    <section class="panel">
-      <h2>🤖 24小時自動跟單<span class="footnote">（伺服器端執行，不用開著網頁）</span></h2>
-      <p class="footnote">
-        每次系統自動更新訊號（背景持續執行，不需要你開著這個網頁）都會前進一步：只要有做多/做空建議就會跟單，
-        虛擬資金平均分配給當下所有建議，碰到停損/停利會自動平倉。起始資金 1,000 萬虛擬台幣，跟下面的瀏覽器練習帳戶
-        完全獨立，兩邊不會互相影響。
-      </p>
-      <section class="cards" id="server-auto-summary"></section>
-      <canvas id="server-auto-equity-chart" height="90"></canvas>
-      <h3>目前持倉</h3>
-      <div id="server-auto-positions" class="skeleton-grid">
-        <div class="skeleton-card"></div>
-      </div>
-      <h3>交易紀錄</h3>
-      <p class="footnote" id="server-auto-history-stats"></p>
-      <div class="table-wrap">
-        <table id="server-auto-history-table">
-          <thead>
-            <tr><th>時間</th><th>標的</th><th>方向</th><th>動作</th><th>數量</th><th>價格</th><th>損益</th></tr>
-          </thead>
-          <tbody id="server-auto-history-body"><tr><td colspan="7">尚無交易紀錄</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>🧪 瀏覽器練習帳戶<span class="footnote">（手動模擬，需要開著網頁）</span></h2>
-      <p class="footnote">資料只存在你目前這個瀏覽器，換裝置、換瀏覽器或清除網站資料都會重置成初始的 1,000 萬虛擬台幣。</p>
+      ⚠️ 這是純前端的「假交易」練習功能，資料只存在你目前這個瀏覽器（localStorage），換裝置、換瀏覽器或清除網站資料都會重置成初始的
+      1,000 萬虛擬台幣。「自動跟單」也只有在你開著這個網頁分頁時才會運作，沒有伺服器幫你在背景下單——這點和一般券商 App 不同，請不要誤會成真的自動交易系統。
+      想要不用開網頁也能自動跟單，可以去看 <a href="auto-trade.html">🤖 24小時自動跟單</a>，那是另一個獨立帳戶，跑在伺服器端。
     </section>
 
     <section class="cards" id="paper-summary"></section>
@@ -112,8 +83,8 @@
           <input type="checkbox" id="paper-auto-toggle" onchange="paperSetAutoTrade(this.checked)" />
           <span class="paper-switch-track"></span>
         </label>
-        瀏覽器端自動跟單：開啟後，只要你開著這個網頁分頁，系統每次更新建議清單時就會自動幫你模擬開倉/平倉（跟上面
-        24小時自動跟單分開計算，不共用資金）——只要有做多/做空建議就會跟，虛擬資金會平均分配給當下所有建議，不會影響你手動開的倉位
+        自動跟單：開啟後，系統每次更新建議清單時，會自動幫你模擬開倉/平倉——只要有做多/做空建議就會跟，虛擬資金會平均分配給當下所有建議，不會影響你手動開的倉位。
+        這是純瀏覽器端的版本，只有在你開著這個網頁分頁時才會運作；不用開網頁也能跟單的版本在 <a href="auto-trade.html">🤖 24小時自動跟單</a>。
       </div>
       <button class="pill pill-btn danger" onclick="paperResetState()">🗑️ 重置模擬帳戶</button>
     </section>

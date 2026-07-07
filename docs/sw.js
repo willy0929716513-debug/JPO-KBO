@@ -13,9 +13,9 @@ const CACHE_VERSION = "v2";
 const APP_CACHE = `app-cache-${CACHE_VERSION}`;
 
 const SHELL_URLS = [
-  "./index.html", "./prices.html", "./paper.html",
+  "./index.html", "./prices.html", "./paper.html", "./auto-trade.html",
   "./assets/common.js", "./assets/app.js", "./assets/prices.js",
-  "./assets/paper.js", "./assets/paper-page.js", "./assets/style.css",
+  "./assets/paper.js", "./assets/paper-page.js", "./assets/auto-trade-page.js", "./assets/style.css",
   "./manifest.json",
   "./icons/favicon-16.png", "./icons/favicon-32.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
