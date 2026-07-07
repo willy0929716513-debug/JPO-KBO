@@ -188,6 +188,25 @@ def test_load_state_falls_back_to_empty_on_missing_or_corrupt_file(tmp_path):
     assert corrupt["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
 
 
+def test_load_state_self_heals_when_persisted_capital_is_stale(tmp_path):
+    """A file written under a since-changed AUTO_TRADER_STARTING_CASH (e.g.
+    the 10,000,000 -> 10,000 capital split) must not just keep resuming
+    forever -- load_state() should re-seed it fresh so the very next pipeline
+    tick self-heals without a manual data commit racing the pipeline's own
+    writes to the same file."""
+    path = tmp_path / "auto_trade_state.json"
+    stale_state = auto_trader._empty_state()
+    stale_state["starting_cash"] = 10_000_000.0
+    stale_state["cash"] = 7_000_000.0
+    stale_state["positions"]["A"] = {"side": "long", "qty": 1000, "avg_price": 100.0, "opened_at": "t"}
+    auto_trader.save_state(path, stale_state)
+
+    reloaded = auto_trader.load_state(path)
+    assert reloaded["starting_cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+    assert reloaded["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+    assert reloaded["positions"] == {}
+
+
 def _synthetic_df(seed: int, n: int = 400) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     dates = pd.date_range("2024-01-01", periods=n, freq="D")

@@ -70,7 +70,14 @@ def load_state(path: Path) -> dict:
         try:
             import json
             state = json.loads(path.read_text())
-            if isinstance(state, dict) and "positions" in state:
+            # A persisted file from before AUTO_TRADER_STARTING_CASH last changed
+            # (e.g. the 10,000,000 -> 10,000 capital split) would otherwise keep
+            # resuming forever under load_state's own inertia -- changing the
+            # constant in code never retroactively touches an already-written
+            # state file. Re-seeding here means the very next pipeline tick
+            # self-heals it, without needing a one-off manual data commit that
+            # would just race the next automated tick to this same file anyway.
+            if isinstance(state, dict) and "positions" in state and state.get("starting_cash") == AUTO_TRADER_STARTING_CASH:
                 return state
         except Exception:
             pass

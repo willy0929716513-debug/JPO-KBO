@@ -227,9 +227,6 @@ function paperPromptOpen(symbol, side) {
   const suggested = Math.max(1, Math.floor(PAPER_MANUAL_DEFAULT_NOTIONAL / price));
   const stops = PAPER_LATEST_STOPS[symbol] || {};
   const unit = quantityUnitLabel(PAPER_LATEST_ASSET_CLASS[symbol]);
-  const stopsLine = (stops.stopLoss != null || stops.takeProfit != null)
-    ? `<div class="footnote">將套用建議停損 ${stops.stopLoss != null ? fmtNum(stops.stopLoss, 2) : "-"}／停利 ${stops.takeProfit != null ? fmtNum(stops.takeProfit, 2) : "-"}，碰到會自動平倉</div>`
-    : "";
 
   const overlay = paperShowModal({
     title: `模擬${sideZh}：${name}`,
@@ -243,12 +240,26 @@ function paperPromptOpen(symbol, side) {
         <button type="button" class="pill pill-btn small" data-qty-step="1">＋</button>
       </div>
       <div class="footnote" id="paper-modal-qty-cost"></div>
-      ${stopsLine}
+      <div class="footnote" style="margin-top:10px">停損／停利（碰到會自動平倉，留空表示不設定；預設帶入系統建議值，可自行修改）</div>
+      <div class="paper-modal-stops-row">
+        <label>停損<input type="number" id="paper-modal-stop-input" step="any" value="${stops.stopLoss != null ? stops.stopLoss : ""}" placeholder="不設定" /></label>
+        <label>停利<input type="number" id="paper-modal-target-input" step="any" value="${stops.takeProfit != null ? stops.takeProfit : ""}" placeholder="不設定" /></label>
+      </div>
     `,
     onConfirm: (el) => {
       const qty = parseInt(el.querySelector("#paper-modal-qty-input").value, 10);
       if (!qty || qty <= 0) return false;
-      paperOpenPosition(symbol, side, price, qty, "manual", stops.stopLoss, stops.takeProfit, PAPER_LATEST_ASSET_CLASS[symbol]);
+      const stopRaw = el.querySelector("#paper-modal-stop-input").value;
+      const targetRaw = el.querySelector("#paper-modal-target-input").value;
+      const stopLoss = stopRaw === "" ? null : parseFloat(stopRaw);
+      const takeProfit = targetRaw === "" ? null : parseFloat(targetRaw);
+      if (stopLoss != null && isNaN(stopLoss)) { alert("停損價格不合法。"); return false; }
+      if (takeProfit != null && isNaN(takeProfit)) { alert("停利價格不合法。"); return false; }
+      const stopOk = stopLoss == null || (side === "long" ? stopLoss < price : stopLoss > price);
+      const targetOk = takeProfit == null || (side === "long" ? takeProfit > price : takeProfit < price);
+      if (!stopOk) { alert(side === "long" ? "做多的停損價必須低於目前價格。" : "做空的停損價必須高於目前價格。"); return false; }
+      if (!targetOk) { alert(side === "long" ? "做多的停利價必須高於目前價格。" : "做空的停利價必須低於目前價格。"); return false; }
+      paperOpenPosition(symbol, side, price, qty, "manual", stopLoss, takeProfit, PAPER_LATEST_ASSET_CLASS[symbol]);
     },
   });
 
