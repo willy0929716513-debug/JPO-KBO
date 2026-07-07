@@ -127,7 +127,7 @@ function renderServerAutoTrader(state) {
             <div class="pick-name">${SYMBOL_NAMES[symbol] || symbol} <span class="pick-symbol">${symbol}</span></div>
             <span class="badge ${pos.side === "long" ? "badge-buy" : "badge-sell"}">${pos.side === "long" ? "做多" : "做空"}</span>
           </div>
-          <div class="num">數量 ${pos.qty}｜成本 ${fmtNum(pos.avg_price, 2)}｜現價 ${cur ? fmtNum(cur, 2) : "-"}</div>
+          <div class="num">數量 ${pos.qty} ${quantityUnitLabel(pos.asset_class)}｜成本 ${fmtNum(pos.avg_price, 2)}｜現價 ${cur ? fmtNum(cur, 2) : "-"}</div>
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
           ${(pos.stop_loss != null || pos.take_profit != null) ? `<div class="num footnote">停損 ${pos.stop_loss != null ? fmtNum(pos.stop_loss, 2) : "-"}｜停利 ${pos.take_profit != null ? fmtNum(pos.take_profit, 2) : "-"}</div>` : ""}
           <div class="footnote">持有 ${heldDays} 天 · 開倉時間 ${new Date(pos.opened_at).toLocaleString()}</div>
@@ -165,7 +165,7 @@ function renderServerAutoTrader(state) {
         <td data-label="標的">${SYMBOL_NAMES[h.symbol] || h.symbol}</td>
         <td data-label="方向">${h.side === "long" ? "做多" : "做空"}</td>
         <td data-label="動作">${actionLabel}</td>
-        <td data-label="數量">${h.qty}</td>
+        <td data-label="數量">${h.qty} ${quantityUnitLabel(h.asset_class)}</td>
         <td data-label="價格">${fmtNum(h.price, 2)}</td>
         <td data-label="損益">${(h.pnl === undefined || h.pnl === null) ? "-" : `${h.pnl >= 0 ? "+" : ""}${fmtNum(h.pnl, 0)}`}</td>
       </tr>`;

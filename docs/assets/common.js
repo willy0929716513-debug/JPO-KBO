@@ -44,6 +44,17 @@ const ASSET_CLASS_ZH = {
   energy: "能源期貨", forex: "外匯", crypto: "加密貨幣",
 };
 
+// All qty math here (both the server-side auto-trader and this browser
+// account) buys/sells in individual shares priced at the raw quote --
+// i.e. "零股" style for Taiwan stocks, NOT the "一張 = 1000股" board-lot
+// convention real TW brokers default to. Labeling it explicitly avoids
+// anyone misreading e.g. "10" as "10張" (10,000 shares).
+function quantityUnitLabel(assetClass) {
+  if (assetClass === "taiwan" || assetClass === "equity" || assetClass === "etf") return "股";
+  if (assetClass === "crypto") return "顆";
+  return "單位";
+}
+
 function badgeClass(action) {
   if (action === "BUY") return "badge-buy";
   if (action === "SELL") return "badge-sell";

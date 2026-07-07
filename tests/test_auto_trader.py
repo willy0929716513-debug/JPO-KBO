@@ -15,9 +15,9 @@ from src.pipeline import auto_trader
 
 
 def _signal(symbol, action, price, stop_loss=None, take_profit=None, vetoed=False, de_action=None,
-            confidence=0.5, votes=None, backtest=None):
+            confidence=0.5, votes=None, backtest=None, asset_class="taiwan"):
     return {
-        "symbol": symbol, "last_price": price,
+        "symbol": symbol, "last_price": price, "asset_class": asset_class,
         "signal": {"final_action": action, "confidence": confidence, "stop_loss": stop_loss,
                    "take_profit": take_profit, "votes": votes or []},
         "decision_engine": {"action": de_action or action, "confidence": confidence, "vetoed": vetoed},
@@ -33,6 +33,19 @@ def test_opens_position_for_every_recommendation():
     assert set(state["positions"].keys()) == {"A", "B"}
     assert state["positions"]["A"]["side"] == "long"
     assert state["positions"]["B"]["side"] == "short"
+
+
+def test_position_and_history_record_asset_class_for_unit_labeling():
+    """qty is a share count, not a board-lot (張) count -- the frontend needs
+    asset_class on positions/history to label it correctly (股 vs 單位)."""
+    state = auto_trader._empty_state()
+    state = auto_trader.run_tick([_signal("A", "BUY", 100.0, asset_class="taiwan")], state)
+    assert state["positions"]["A"]["asset_class"] == "taiwan"
+    assert state["history"][0]["asset_class"] == "taiwan"
+
+    state = auto_trader.run_tick([_signal("A", "HOLD", 100.0, asset_class="taiwan")], state)
+    close_entries = [h for h in state["history"] if h["action"] == "close"]
+    assert close_entries[0]["asset_class"] == "taiwan"
 
 
 def test_skips_recommendation_below_min_confidence():
