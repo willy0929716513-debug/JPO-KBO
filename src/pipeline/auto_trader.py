@@ -10,18 +10,21 @@ persistent virtual portfolio stored in docs/data/auto_trade_state.json and
 committed to the repo just like signals_latest.json -- so it keeps trading
 regardless of whether anyone has the dashboard open.
 
-The trading rules deliberately mirror paperAutoTradeTick()/
-paperCheckStopsAndTargets() in docs/assets/paper.js exactly (same starting
-capital, same per-slot budget split across every current recommendation,
-same stop-loss/take-profit enforcement) so the two are directly comparable
-and there's only one place the actual rules are defined in prose.
+The trading *rules* deliberately mirror paperAutoTradeTick()/
+paperCheckStopsAndTargets() in docs/assets/paper.js exactly (same per-slot
+budget split across every current recommendation, same stop-loss/take-profit
+enforcement, same confidence/profit-factor filtering) so the two are directly
+comparable as strategies. Per user request, the starting *capital* is
+deliberately different between the two accounts (NT$10,000 here vs.
+NT$10,000,000 for the browser-local practice account) -- two independent
+strategies at two different capital scales, not the same strategy twice.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 
-AUTO_TRADER_STARTING_CASH = 10_000_000.0
+AUTO_TRADER_STARTING_CASH = 10_000.0
 AUTO_TRADE_NOTIONAL = AUTO_TRADER_STARTING_CASH * 0.1
 MAX_HISTORY_ENTRIES = 200
 MAX_EQUITY_POINTS = 300
