@@ -236,9 +236,9 @@ function paperPromptOpen(symbol, side) {
       <div class="paper-modal-qty-row">
         <button type="button" class="pill pill-btn small" data-qty-step="-1">－</button>
         <input type="number" id="paper-modal-qty-input" min="1" step="1" value="${suggested}" />
-        <span class="footnote">${unit}${unit === "股" ? "（非「張」，1張＝1000股）" : ""}</span>
         <button type="button" class="pill pill-btn small" data-qty-step="1">＋</button>
       </div>
+      <div class="footnote">單位：${unit}${unit === "股" ? "（非「張」，1張＝1000股）" : ""}</div>
       <div class="footnote" id="paper-modal-qty-cost"></div>
       <div class="footnote" style="margin-top:10px">停損／停利（碰到會自動平倉，留空表示不設定；預設帶入系統建議值，可自行修改）</div>
       <div class="paper-modal-stops-row">
