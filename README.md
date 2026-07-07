@@ -63,8 +63,13 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
    與報酬分佈，避免對單一歷史路徑過度自信。
 7. **風險管理**：`DrawdownCircuitBreaker` 在權益回撤超過門檻時停止進場，觸發狀態會從上一次執行的
    結果讀回並延續（`initially_tripped`），不會因為 pipeline 每次重新建立物件就失去「持續鎖住直到
-   回復」的判斷；`LossLimitMonitor` 檢查每日/週/月虧損上限；`RiskAgent` 的相關性檢查現在會拿到
-   當次執行已分析標的的實際報酬率資料。**誠實說明**：Kelly Criterion / 固定風險比例 / ATR 動態
+   回復」的判斷；`LossLimitMonitor` 檢查每日/週/月虧損上限。這兩個檢查看的是**24小時自動跟單帳戶
+   自己真實的權益曲線**（`docs/data/auto_trade_state.json` 的 `equity_history`，全部標的共用同一份
+   結果），不是每檔股票自己的策略回測——這是 2026-07 修正的一個 bug：一開始曾經改成看「每檔標的
+   自己的趨勢策略回測曲線」，但個股本身正常的價格波動就常常出現20%以上的歷史回撤，一旦上面那個
+   「持續鎖住」的邏輯真的生效，就會讓大多數標的被永久否決成觀望，24小時自動跟單因此完全不會下單
+   ——這是把「個股正常波動」誤判成「帳戶真的在虧損」，已經改回看真實帳戶權益；`RiskAgent` 的相關性
+   檢查現在會拿到當次執行已分析標的的實際報酬率資料。**誠實說明**：Kelly Criterion / 固定風險比例 / ATR 動態
    部位（`src/risk/position_sizing.py`）、VaR/CVaR（`historical_var`/`conditional_var`）都只是寫好、
    測試過的獨立函式，**目前沒有被 `daily_run.py` 呼叫**，也不影響任何一檔標的的訊號或信心度——
    這套系統目前不會建議「這筆該押多少部位」，只給方向與停損停利價位，資金控管完全由你自己決定。
