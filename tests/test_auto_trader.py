@@ -1,0 +1,161 @@
+"""Tests for the server-side 24/7 paper-trading auto-follower
+(src/pipeline/auto_trader.py) -- runs inside the pipeline itself (already
+executing ~24/7 via the self-chaining GitHub Actions workflow) instead of
+requiring a browser tab to stay open, unlike the original client-side
+auto-trade toggle in docs/assets/paper.js.
+"""
+import json
+
+import numpy as np
+import pandas as pd
+import pytest
+
+import src.pipeline.daily_run as daily_run
+from src.pipeline import auto_trader
+
+
+def _signal(symbol, action, price, stop_loss=None, take_profit=None, vetoed=False, de_action=None):
+    return {
+        "symbol": symbol, "last_price": price,
+        "signal": {"final_action": action, "stop_loss": stop_loss, "take_profit": take_profit},
+        "decision_engine": {"action": de_action or action, "vetoed": vetoed},
+    }
+
+
+def test_opens_position_for_every_recommendation():
+    state = auto_trader._empty_state()
+    signals = [_signal("A", "BUY", 100.0), _signal("B", "SELL", 50.0), _signal("C", "HOLD", 10.0)]
+    state = auto_trader.run_tick(signals, state)
+
+    assert set(state["positions"].keys()) == {"A", "B"}
+    assert state["positions"]["A"]["side"] == "long"
+    assert state["positions"]["B"]["side"] == "short"
+
+
+def test_respects_true_multi_agent_decision_not_raw_technical_signal():
+    """A vetoed symbol must never open a position, even though the raw
+    technical signal says BUY/SELL -- mirrors effectiveAction() in
+    docs/assets/common.js exactly."""
+    state = auto_trader._empty_state()
+    signals = [_signal("VETOED", "SELL", 100.0, vetoed=True)]
+    state = auto_trader.run_tick(signals, state)
+    assert state["positions"] == {}
+
+
+def test_stop_loss_force_closes_open_position():
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": 90.0, "take_profit": None}
+    signals = [_signal("A", "HOLD", 85.0)]  # price fell through the stop
+    state = auto_trader.run_tick(signals, state)
+
+    assert "A" not in state["positions"]
+    assert state["history"][0]["close_reason"] == "stop_loss"
+    assert state["history"][0]["price"] == 90.0  # exited at the stop, not the live price
+    assert state["realized_pnl"] < 0
+
+
+def test_take_profit_force_closes_open_position():
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "short", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": None, "take_profit": 80.0}
+    signals = [_signal("A", "HOLD", 75.0)]  # price fell through the short's take-profit
+    state = auto_trader.run_tick(signals, state)
+
+    assert "A" not in state["positions"]
+    assert state["history"][0]["close_reason"] == "take_profit"
+    assert state["history"][0]["price"] == 80.0
+    assert state["realized_pnl"] > 0
+
+
+def test_closes_position_when_signal_flips_away():
+    """When the signal flips to the opposite side, the old position is
+    closed and (since that side is still actively recommended) a new
+    position in the new direction opens immediately in the same tick --
+    rather than sitting flat for one extra cycle."""
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": None, "take_profit": None}
+    signals = [_signal("A", "SELL", 105.0)]
+    state = auto_trader.run_tick(signals, state)
+
+    assert state["positions"]["A"]["side"] == "short"
+    close_entries = [h for h in state["history"] if h["action"] == "close"]
+    assert len(close_entries) == 1
+    assert close_entries[0]["close_reason"] is None
+    assert close_entries[0]["side"] == "long"
+
+
+def test_budget_splits_across_many_simultaneous_candidates():
+    """A batch of simultaneous recommendations larger than the fixed lot size
+    would allow should still all get opened -- same fix as the client-side
+    round-robin/budget-split logic."""
+    state = auto_trader._empty_state()
+    signals = [_signal(f"SYM{i}", "BUY", 100.0) for i in range(30)]
+    state = auto_trader.run_tick(signals, state)
+    assert len(state["positions"]) == 30
+
+
+def test_state_round_trips_through_json(tmp_path):
+    state = auto_trader._empty_state()
+    signals = [_signal("A", "BUY", 100.0, stop_loss=90.0, take_profit=120.0)]
+    state = auto_trader.run_tick(signals, state)
+
+    path = tmp_path / "auto_trade_state.json"
+    auto_trader.save_state(path, state)
+    reloaded = auto_trader.load_state(path)
+
+    assert reloaded["positions"]["A"]["avg_price"] == 100.0
+    assert reloaded["cash"] == state["cash"]
+
+
+def test_load_state_falls_back_to_empty_on_missing_or_corrupt_file(tmp_path):
+    missing = auto_trader.load_state(tmp_path / "nonexistent.json")
+    assert missing["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+
+    corrupt_path = tmp_path / "corrupt.json"
+    corrupt_path.write_text("{not valid json")
+    corrupt = auto_trader.load_state(corrupt_path)
+    assert corrupt["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+
+
+def _synthetic_df(seed: int, n: int = 400) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2024-01-01", periods=n, freq="D")
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0003, 0.01, n)))
+    high, low = close * 1.005, close * 0.995
+    volume = rng.integers(1_000_000, 5_000_000, n).astype(float)
+    return pd.DataFrame({"open": close, "high": high, "low": low, "close": close, "volume": volume}, index=dates)
+
+
+def test_run_daily_pipeline_writes_auto_trade_state(tmp_path, monkeypatch):
+    """End-to-end: run_daily_pipeline() should call the auto-trader and
+    persist docs/data/auto_trade_state.json, not just signals_latest.json --
+    this is what makes auto-follow keep running without a browser tab open."""
+    monkeypatch.setattr(daily_run, "DOCS_DATA_DIR", tmp_path)
+    monkeypatch.setattr(daily_run, "WATCHLIST", {"equity": ["SYM"]})
+    monkeypatch.setattr(daily_run, "PAIR_WATCHLIST", [])
+    monkeypatch.setattr(daily_run, "_load_ohlcv", lambda symbol, asset_class, interval="1d": _synthetic_df(7))
+
+    class _StubSentiment:
+        def get_crypto_fear_greed(self):
+            return {"value": 50, "classification": "Neutral"}
+
+    class _StubMacro:
+        def get_dxy_and_yields_snapshot(self):
+            return {}
+
+    monkeypatch.setattr(daily_run, "SentimentProvider", _StubSentiment)
+    monkeypatch.setattr(daily_run, "MacroProvider", _StubMacro)
+    monkeypatch.setattr(daily_run, "is_market_open", lambda asset_class: True)
+
+    daily_run.run_daily_pipeline()
+
+    state_path = tmp_path / "auto_trade_state.json"
+    assert state_path.exists()
+    state = json.loads(state_path.read_text())
+    assert "positions" in state
+    assert state["cash"] <= auto_trader.AUTO_TRADER_STARTING_CASH  # either untouched or spent opening a position
+
+    # A second run should load and advance the same state rather than
+    # starting over from scratch each time.
+    daily_run.run_daily_pipeline()
+    second_state = json.loads(state_path.read_text())
+    assert len(second_state["equity_history"]) >= len(state["equity_history"])
