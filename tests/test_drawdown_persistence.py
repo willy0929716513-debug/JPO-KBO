@@ -60,9 +60,12 @@ def _stub_external_dependencies(tmp_path, monkeypatch):
 
 
 def test_pipeline_seeds_breaker_from_previous_run_tripped_state(monkeypatch):
-    """run_daily_pipeline should read last run's own `risk_status.
-    drawdown_circuit_breaker_tripped` for a symbol and pass it through as
-    this run's `prior_drawdown_tripped`, rather than always starting fresh."""
+    """run_daily_pipeline should read last run's own top-level
+    `portfolio_risk_status.drawdown_circuit_breaker_tripped` and pass it
+    through as this run's `initially_tripped` seed for the one shared
+    portfolio-level breaker, rather than always starting fresh. (This is a
+    single breaker shared across every symbol -- see the module docstring
+    in src/pipeline/auto_trader.py for why it's no longer per-symbol.)"""
     captured_initially_tripped = []
     real_breaker = daily_run.DrawdownCircuitBreaker
 
@@ -76,16 +79,56 @@ def test_pipeline_seeds_breaker_from_previous_run_tripped_state(monkeypatch):
     daily_run.run_daily_pipeline()
     assert captured_initially_tripped[0] is False
 
-    # Simulate the previous run having ended with this symbol's breaker tripped.
+    # Simulate the previous run having ended with the shared portfolio breaker tripped.
     payload_path = daily_run.DOCS_DATA_DIR / "signals_latest.json"
     import json
     payload = json.loads(payload_path.read_text())
-    payload["signals"][0]["risk_status"]["drawdown_circuit_breaker_tripped"] = True
+    payload["portfolio_risk_status"]["drawdown_circuit_breaker_tripped"] = True
     payload_path.write_text(json.dumps(payload))
 
     captured_initially_tripped.clear()
     daily_run.run_daily_pipeline()
     assert captured_initially_tripped[0] is True  # carried the prior tripped state forward
+
+
+def test_portfolio_risk_veto_uses_real_account_equity_not_single_symbol_backtest(monkeypatch):
+    """Regression test for a real production bug: a single stock's own
+    historical backtest routinely has a rough patch (this one deliberately
+    crashes 45% mid-series) -- that must not veto trading on it when the
+    real, shared 24-hour auto-trader account isn't actually in a drawdown.
+    Before this fix, RiskAgent gated on each symbol's own trend-following
+    backtest equity curve, so ordinary single-name volatility got treated
+    as "the portfolio is bleeding" -- once the breaker's hysteresis
+    persistence started actually working, this stuck the majority of the
+    watchlist permanently vetoed, since single stocks routinely see 20%+
+    drawdowns somewhere in their own history."""
+    def _crashing_df(symbol, asset_class, interval="1d"):
+        dates = pd.date_range("2024-01-01", periods=400, freq="D")
+        close = np.concatenate([
+            np.full(150, 100.0),
+            np.linspace(100.0, 55.0, 50),  # a severe single-name crash
+            np.full(200, 55.0),
+        ])
+        high, low = close * 1.005, close * 0.995
+        volume = np.full(400, 2_000_000.0)
+        return pd.DataFrame({"open": close, "high": high, "low": low, "close": close, "volume": volume}, index=dates)
+
+    monkeypatch.setattr(daily_run, "_load_ohlcv", _crashing_df)
+
+    from src.pipeline import auto_trader
+    auto_state_path = daily_run.DOCS_DATA_DIR / "auto_trade_state.json"
+    healthy_state = auto_trader._empty_state()
+    healthy_state["equity_history"] = [
+        {"time": "2024-06-01T00:00:00+00:00", "equity": 10_000.0},
+        {"time": "2024-06-02T00:00:00+00:00", "equity": 10_000.0},
+        {"time": "2024-06-03T00:00:00+00:00", "equity": 10_050.0},
+    ]
+    auto_trader.save_state(auto_state_path, healthy_state)
+
+    payload = daily_run.run_daily_pipeline()
+
+    assert payload["portfolio_risk_status"]["drawdown_circuit_breaker_tripped"] is False
+    assert payload["signals"][0]["decision_engine"]["vetoed"] is False
 
 
 def test_pipeline_populates_returns_by_symbol_and_asset_class_of(monkeypatch):

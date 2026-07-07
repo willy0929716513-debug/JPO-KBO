@@ -174,7 +174,10 @@ def _extract_indicators(features: pd.DataFrame) -> dict:
 
 
 def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snapshot: dict,
-                     sentiment_snapshot: dict, prior_drawdown_tripped: bool = False,
+                     sentiment_snapshot: dict, portfolio_equity_curve: pd.Series | None = None,
+                     portfolio_risk_status: dict | None = None,
+                     drawdown_breaker: DrawdownCircuitBreaker | None = None,
+                     loss_limit_monitor: LossLimitMonitor | None = None,
                      returns_by_symbol: dict[str, pd.Series] | None = None,
                      asset_class_of: dict[str, str] | None = None) -> dict | None:
     if df.empty or len(df) < 80:
@@ -196,39 +199,31 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     backtest_results = {strat.name: engine.run(symbol, strat, features) for strat in strategies}
     backtest_snapshot = {name: result.metrics for name, result in backtest_results.items()}
 
-    # Risk status is checked against this symbol's own trend-following equity
-    # curve as a stand-in for a live portfolio equity curve (which doesn't
-    # exist yet -- no persistent broker state), so it reflects "would this
-    # strategy on this symbol currently be within its risk limits." Only the
-    # most recent window is used for that check -- the backtest spans years,
-    # and a >20% drawdown *somewhere* over that long a history is normal, not
-    # a sign of a live risk problem *today*. Using the full history here made
-    # the risk veto trip on almost every symbol, which is a real bug, not a
-    # genuinely risk-averse call. The full-history curve is still used for
-    # backtest_snapshot below, where "how has this strategy performed
-    # historically" is exactly what should be shown.
-    trend_equity_full = backtest_results["trend_following"].equity_curve
-    recent_window = min(90, len(trend_equity_full))
-    trend_equity_recent = trend_equity_full.tail(recent_window)
-
-    # `initially_tripped` restores whether this symbol's breaker was already
-    # tripped as of the previous run (read from last run's own output payload
-    # by the caller) -- without it, a fresh DrawdownCircuitBreaker() every run
-    # always starts untripped, which silently defeats its whole "stays halted
-    # until equity recovers past reset_drawdown_pct" hysteresis design.
-    loss_status = LossLimitMonitor().check(trend_equity_recent)
-    breaker = DrawdownCircuitBreaker(initially_tripped=prior_drawdown_tripped)
-    drawdown_breached = breaker.update(trend_equity_recent)
-    risk_status = {
-        "current_drawdown_pct": round(max_drawdown(trend_equity_recent) * 100, 2),
-        "drawdown_circuit_breaker_tripped": drawdown_breached,
-        **loss_status.to_dict(),
+    # backtest_snapshot above already uses each strategy's own full-history
+    # equity curve, which is exactly right for "how has this strategy
+    # performed historically." The risk *veto*, below, deliberately does NOT
+    # reuse that curve -- gating trade entries on a single stock's own
+    # historical backtest conflates "this individual name had a rough patch
+    # sometime in the last ~90 days" (routine for any single equity) with
+    # "our actual trading capital is currently bleeding" (what a circuit
+    # breaker is supposed to catch). That mismatch made the drawdown breaker
+    # -- once its hysteresis persistence actually worked -- get permanently
+    # stuck tripped for the large majority of the watchlist, since ordinary
+    # single-name volatility routinely exceeds a 20% max-drawdown bar. The
+    # veto is checked against the real, shared 24-hour auto-trader account's
+    # own equity curve instead (computed once in run_daily_pipeline and
+    # passed in here), which is what "the portfolio is bleeding" should
+    # actually mean, and is identical for every symbol in a given run.
+    risk_status = portfolio_risk_status or {
+        "current_drawdown_pct": 0.0, "drawdown_circuit_breaker_tripped": False,
+        "halted": False, "breached": [], "daily_pnl_pct": 0.0, "weekly_pnl_pct": 0.0, "monthly_pnl_pct": 0.0,
     }
 
     decision_engine = DecisionEngine([TechnicalAgent(combiner, RegimeDetector()), MacroAgent(),
-                                       RiskAgent(drawdown_breaker=breaker, loss_limit_monitor=LossLimitMonitor())])
+                                       RiskAgent(drawdown_breaker=drawdown_breaker or DrawdownCircuitBreaker(),
+                                                 loss_limit_monitor=loss_limit_monitor or LossLimitMonitor())])
     context = AgentContext(symbol=symbol, features=features, macro_snapshot=macro_snapshot,
-                            sentiment_snapshot=sentiment_snapshot, equity_curve=trend_equity_recent,
+                            sentiment_snapshot=sentiment_snapshot, equity_curve=portfolio_equity_curve,
                             returns_by_symbol=returns_by_symbol, asset_class_of=asset_class_of)
     decision = decision_engine.decide(context)
 
@@ -274,6 +269,19 @@ def _load_previous_payload() -> dict:
         return {}
 
 
+def _equity_series_from_history(equity_history: list[dict]) -> pd.Series:
+    """Builds a datetime-indexed equity curve from auto_trader's
+    equity_history (list of {"time": iso str, "equity": float}), the only
+    real, persistent, portfolio-level equity curve this pipeline has access
+    to -- used as the shared risk-veto input for every symbol instead of
+    each stock's own single-strategy backtest curve."""
+    if not equity_history:
+        return pd.Series(dtype=float)
+    times = pd.to_datetime([e["time"] for e in equity_history])
+    values = [e["equity"] for e in equity_history]
+    return pd.Series(values, index=times).sort_index()
+
+
 def _analyze_pairs(price_cache: dict[str, pd.Series], errors: list[dict]) -> list[dict]:
     results = []
     strategy = PairsTradingStrategy()
@@ -309,6 +317,36 @@ def run_daily_pipeline() -> dict:
     macro_snapshot = MacroProvider().get_dxy_and_yields_snapshot()  # returns all-None values if FRED_API_KEY unset
     asset_class_of = {s: ac for ac, syms in WATCHLIST.items() for s in syms}
 
+    # Portfolio-level risk gating, shared across every symbol: the 24-hour
+    # auto-trader's own equity_history is the only real, persistent trading
+    # equity curve this pipeline has access to, so it's what the risk veto
+    # should reflect ("is our actual capital bleeding"), not each
+    # individual stock's own historical backtest (routine single-name
+    # volatility routinely exceeds a 20% drawdown bar, which made the risk
+    # veto -- once its hysteresis persistence actually worked -- get stuck
+    # tripped for most of the watchlist; see auto_trader module docstring).
+    auto_state_path = DOCS_DATA_DIR / "auto_trade_state.json"
+    auto_state = auto_trader.load_state(auto_state_path)
+    portfolio_equity_curve = _equity_series_from_history(auto_state.get("equity_history", []))
+    prior_portfolio_tripped = bool(
+        (previous_payload.get("portfolio_risk_status") or {}).get("drawdown_circuit_breaker_tripped", False)
+    )
+    portfolio_breaker = DrawdownCircuitBreaker(initially_tripped=prior_portfolio_tripped)
+    portfolio_loss_monitor = LossLimitMonitor()
+    if len(portfolio_equity_curve) > 1:
+        portfolio_drawdown_breached = portfolio_breaker.update(portfolio_equity_curve)
+        portfolio_loss_status = portfolio_loss_monitor.check(portfolio_equity_curve)
+        portfolio_risk_status = {
+            "current_drawdown_pct": round(max_drawdown(portfolio_equity_curve) * 100, 2),
+            "drawdown_circuit_breaker_tripped": portfolio_drawdown_breached,
+            **portfolio_loss_status.to_dict(),
+        }
+    else:
+        portfolio_risk_status = {
+            "current_drawdown_pct": 0.0, "drawdown_circuit_breaker_tripped": False,
+            "halted": False, "breached": [], "daily_pnl_pct": 0.0, "weekly_pnl_pct": 0.0, "monthly_pnl_pct": 0.0,
+        }
+
     for asset_class, symbols in WATCHLIST.items():
         for symbol in symbols:
             market_open = is_market_open(asset_class)
@@ -326,8 +364,6 @@ def run_daily_pipeline() -> dict:
                 df = _load_ohlcv(symbol, asset_class)
                 if not df.empty:
                     price_cache[symbol] = df["close"]
-                prior = previous_by_symbol.get(symbol, {})
-                prior_tripped = bool((prior.get("risk_status") or {}).get("drawdown_circuit_breaker_tripped", False))
                 # Correlation check needs every other symbol's returns too, but
                 # this pipeline analyzes one symbol at a time -- use whatever's
                 # accumulated in price_cache so far this run (every symbol
@@ -336,7 +372,10 @@ def run_daily_pipeline() -> dict:
                 # second pass over the watchlist just for this.
                 returns_by_symbol = {s: c.pct_change().dropna() for s, c in price_cache.items()}
                 res = _analyze_symbol(symbol, asset_class, df, macro_snapshot, sentiment_snapshot,
-                                       prior_drawdown_tripped=prior_tripped,
+                                       portfolio_equity_curve=portfolio_equity_curve,
+                                       portfolio_risk_status=portfolio_risk_status,
+                                       drawdown_breaker=portfolio_breaker,
+                                       loss_limit_monitor=portfolio_loss_monitor,
                                        returns_by_symbol=returns_by_symbol, asset_class_of=asset_class_of)
                 if res:
                     res["market_open"] = market_open
@@ -367,6 +406,7 @@ def run_daily_pipeline() -> dict:
         "errors": errors,
         "market_sentiment": sentiment_snapshot,
         "macro_snapshot": macro_snapshot,
+        "portfolio_risk_status": portfolio_risk_status,
         "signals": results,
         "pairs_signals": pairs_signals,
     }
@@ -384,8 +424,6 @@ def run_daily_pipeline() -> dict:
     # original browser-only auto-trade toggle in docs/assets/paper.js, which
     # only ever evaluates while that page is sitting open in a tab.
     try:
-        auto_state_path = DOCS_DATA_DIR / "auto_trade_state.json"
-        auto_state = auto_trader.load_state(auto_state_path)
         auto_state = auto_trader.run_tick(results, auto_state)
         auto_trader.save_state(auto_state_path, auto_state)
     except Exception as exc:
