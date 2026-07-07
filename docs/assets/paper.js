@@ -21,6 +21,7 @@ const PAPER_AUTO_TRADE_MIN_CONFIDENCE = 0.20;
 
 let PAPER_LATEST_PRICES = {};
 let PAPER_LATEST_STOPS = {}; // { [symbol]: { stopLoss, takeProfit } } from the dashboard's own recommended levels
+let PAPER_LATEST_ASSET_CLASS = {}; // { [symbol]: "taiwan"|"equity"|"etf"|"crypto"|... } for quantityUnitLabel()
 
 function paperEmptyTradeStats() {
   return { wins: 0, losses: 0, grossProfit: 0, grossLoss: 0 };
@@ -123,6 +124,7 @@ function paperCacheLatestPrices(payload) {
       stopLoss: s.signal ? s.signal.stop_loss : null,
       takeProfit: s.signal ? s.signal.take_profit : null,
     };
+    PAPER_LATEST_ASSET_CLASS[s.symbol] = s.asset_class;
   });
   let state = paperLoadState();
   state = paperCheckStopsAndTargets(state);
@@ -156,7 +158,7 @@ function paperPushHistory(state, entry) {
   state.history = state.history.slice(0, 200);
 }
 
-function paperOpenPosition(symbol, side, price, qty, source, stopLoss, takeProfit) {
+function paperOpenPosition(symbol, side, price, qty, source, stopLoss, takeProfit, assetClass) {
   if (!price || !qty || qty <= 0) return;
   const state = paperLoadState();
   if (state.positions[symbol]) {
@@ -171,9 +173,9 @@ function paperOpenPosition(symbol, side, price, qty, source, stopLoss, takeProfi
   state.cash -= notional;
   state.positions[symbol] = {
     side, qty, avgPrice: price, openedAt: new Date().toISOString(), source,
-    stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null,
+    stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null, assetClass: assetClass ?? null,
   };
-  paperPushHistory(state, { symbol, side, action: "open", qty, price, source });
+  paperPushHistory(state, { symbol, side, action: "open", qty, price, source, assetClass });
   paperSaveState(state);
   paperRenderAll();
 }
@@ -198,7 +200,7 @@ function paperClosePositionAtPrice(symbol, price, state, closeReason) {
     stats[magnitudeKey] += Math.abs(pnl);
   });
 
-  paperPushHistory(state, { symbol, side: pos.side, action: "close", qty: pos.qty, price, pnl, source: pos.source, closeReason });
+  paperPushHistory(state, { symbol, side: pos.side, action: "close", qty: pos.qty, price, pnl, source: pos.source, closeReason, assetClass: pos.assetClass });
   delete state.positions[symbol];
   return state;
 }
@@ -224,6 +226,7 @@ function paperPromptOpen(symbol, side) {
   const name = SYMBOL_NAMES[symbol] || symbol;
   const suggested = Math.max(1, Math.floor(PAPER_MANUAL_DEFAULT_NOTIONAL / price));
   const stops = PAPER_LATEST_STOPS[symbol] || {};
+  const unit = quantityUnitLabel(PAPER_LATEST_ASSET_CLASS[symbol]);
   const stopsLine = (stops.stopLoss != null || stops.takeProfit != null)
     ? `<div class="footnote">將套用建議停損 ${stops.stopLoss != null ? fmtNum(stops.stopLoss, 2) : "-"}／停利 ${stops.takeProfit != null ? fmtNum(stops.takeProfit, 2) : "-"}，碰到會自動平倉</div>`
     : "";
@@ -236,6 +239,7 @@ function paperPromptOpen(symbol, side) {
       <div class="paper-modal-qty-row">
         <button type="button" class="pill pill-btn small" data-qty-step="-1">－</button>
         <input type="number" id="paper-modal-qty-input" min="1" step="1" value="${suggested}" />
+        <span class="footnote">${unit}${unit === "股" ? "（非「張」，1張＝1000股）" : ""}</span>
         <button type="button" class="pill pill-btn small" data-qty-step="1">＋</button>
       </div>
       <div class="footnote" id="paper-modal-qty-cost"></div>
@@ -244,7 +248,7 @@ function paperPromptOpen(symbol, side) {
     onConfirm: (el) => {
       const qty = parseInt(el.querySelector("#paper-modal-qty-input").value, 10);
       if (!qty || qty <= 0) return false;
-      paperOpenPosition(symbol, side, price, qty, "manual", stops.stopLoss, stops.takeProfit);
+      paperOpenPosition(symbol, side, price, qty, "manual", stops.stopLoss, stops.takeProfit, PAPER_LATEST_ASSET_CLASS[symbol]);
     },
   });
 
@@ -252,7 +256,7 @@ function paperPromptOpen(symbol, side) {
   const costEl = overlay.querySelector("#paper-modal-qty-cost");
   const updateCost = () => {
     const qty = Math.max(1, parseInt(input.value, 10) || 1);
-    costEl.textContent = `約需 ${Math.round(qty * price).toLocaleString()} 虛擬台幣`;
+    costEl.textContent = `${qty} ${unit} ・ 約需 ${Math.round(qty * price).toLocaleString()} 虛擬台幣`;
   };
   overlay.querySelectorAll("[data-qty-step]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -355,9 +359,9 @@ function paperAutoTradeTick(payload) {
         state.cash -= notional;
         state.positions[s.symbol] = {
           side: action === "BUY" ? "long" : "short", qty, avgPrice: price, openedAt: new Date().toISOString(), source: "auto",
-          stopLoss: s.signal.stop_loss ?? null, takeProfit: s.signal.take_profit ?? null,
+          stopLoss: s.signal.stop_loss ?? null, takeProfit: s.signal.take_profit ?? null, assetClass: s.asset_class ?? null,
         };
-        paperPushHistory(state, { symbol: s.symbol, side: action === "BUY" ? "long" : "short", action: "open", qty, price, source: "auto" });
+        paperPushHistory(state, { symbol: s.symbol, side: action === "BUY" ? "long" : "short", action: "open", qty, price, source: "auto", assetClass: s.asset_class });
       }
     });
   }
@@ -467,7 +471,7 @@ function paperHistoryRowToCsvFields(h) {
     SYMBOL_NAMES[h.symbol] || h.symbol,
     h.side === "long" ? "做多" : "做空",
     h.action === "open" ? "開倉" : (h.closeReason === "stop_loss" ? "停損出場" : h.closeReason === "take_profit" ? "停利出場" : "平倉"),
-    h.qty,
+    `${h.qty} ${quantityUnitLabel(h.assetClass)}`,
     h.price,
     Math.round(h.qty * h.price),
     h.pnl === undefined ? "" : Math.round(h.pnl),
@@ -508,7 +512,7 @@ function renderTradeButtons(scopeEl) {
       const pnl = paperUnrealizedPnl(pos, cur);
       const pnlClass = pnl >= 0 ? "live-up" : "live-down";
       el.innerHTML = `<div class="paper-position-badge">
-        <span>模擬持倉：${pos.side === "long" ? "做多" : "做空"} ${pos.qty} 單位 @ ${fmtNum(pos.avgPrice, 2)}（金額 ${Math.round(pos.avgPrice * pos.qty).toLocaleString()}）</span>
+        <span>模擬持倉：${pos.side === "long" ? "做多" : "做空"} ${pos.qty} ${quantityUnitLabel(pos.assetClass)} @ ${fmtNum(pos.avgPrice, 2)}（金額 ${Math.round(pos.avgPrice * pos.qty).toLocaleString()}）</span>
         <span class="${pnlClass}">未實現損益 ${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</span>
         <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
       </div>`;
@@ -614,7 +618,7 @@ function paperRenderDashboardPage() {
             <div class="pick-name">${SYMBOL_NAMES[symbol] || symbol} <span class="pick-symbol">${symbol}</span></div>
             <span class="badge ${pos.side === "long" ? "badge-buy" : "badge-sell"}">${pos.side === "long" ? "做多" : "做空"}</span>
           </div>
-          <div class="num">數量 ${pos.qty}｜成本 ${fmtNum(pos.avgPrice, 2)}｜現價 ${fmtNum(cur, 2)}</div>
+          <div class="num">數量 ${pos.qty} ${quantityUnitLabel(pos.assetClass)}｜成本 ${fmtNum(pos.avgPrice, 2)}｜現價 ${fmtNum(cur, 2)}</div>
           <div class="num footnote">開倉金額：${Math.round(pos.avgPrice * pos.qty).toLocaleString()}</div>
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
           ${(pos.stopLoss != null || pos.takeProfit != null) ? `<div class="num footnote">停損 ${pos.stopLoss != null ? fmtNum(pos.stopLoss, 2) : "-"}｜停利 ${pos.takeProfit != null ? fmtNum(pos.takeProfit, 2) : "-"}（碰到會自動平倉）</div>` : ""}
@@ -650,7 +654,7 @@ function paperRenderDashboardPage() {
         <td data-label="標的">${SYMBOL_NAMES[h.symbol] || h.symbol}</td>
         <td data-label="方向">${h.side === "long" ? "做多" : "做空"}</td>
         <td data-label="動作">${h.action === "open" ? "開倉" : (h.closeReason === "stop_loss" ? "停損出場" : h.closeReason === "take_profit" ? "停利出場" : "平倉")}</td>
-        <td data-label="數量">${h.qty}</td>
+        <td data-label="數量">${h.qty} ${quantityUnitLabel(h.assetClass)}</td>
         <td data-label="價格">${fmtNum(h.price, 2)}</td>
         <td data-label="金額">${Math.round(h.qty * h.price).toLocaleString()}</td>
         <td data-label="損益">${h.pnl === undefined ? "-" : `${h.pnl >= 0 ? "+" : ""}${fmtNum(h.pnl, 0)}`}</td>

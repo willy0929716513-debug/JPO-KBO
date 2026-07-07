@@ -18,6 +18,12 @@ comparable as strategies. Per user request, the starting *capital* is
 deliberately different between the two accounts (NT$10,000 here vs.
 NT$10,000,000 for the browser-local practice account) -- two independent
 strategies at two different capital scales, not the same strategy twice.
+
+`qty` throughout this module is a count of individual shares priced at the
+raw quote (`last_price`) -- i.e. "零股" style for Taiwan stocks, NOT the
+"一張 = 1000股" board-lot convention real TW brokers default to. This is
+what makes a NT$10,000 account able to hold >1 Taiwan stock position at all
+(one board lot of most watchlist names alone would cost more than that).
 """
 from __future__ import annotations
 
@@ -161,6 +167,7 @@ def _close_position(state: dict, symbol: str, price: float, close_reason: str | 
     _push_history(state, {
         "symbol": symbol, "side": pos["side"], "action": "close",
         "qty": pos["qty"], "price": price, "pnl": pnl, "close_reason": close_reason,
+        "asset_class": pos.get("asset_class"),
     })
 
 
@@ -241,8 +248,12 @@ def run_tick(signals: list[dict], state: dict) -> dict:
                 state["positions"][s["symbol"]] = {
                     "side": side, "qty": qty, "avg_price": price, "opened_at": _now_iso(),
                     "stop_loss": s["signal"].get("stop_loss"), "take_profit": s["signal"].get("take_profit"),
+                    "asset_class": s.get("asset_class"),
                 }
-                _push_history(state, {"symbol": s["symbol"], "side": side, "action": "open", "qty": qty, "price": price})
+                _push_history(state, {
+                    "symbol": s["symbol"], "side": side, "action": "open", "qty": qty, "price": price,
+                    "asset_class": s.get("asset_class"),
+                })
 
     equity = _compute_equity(state, by_symbol)
     state["equity_history"].append({"time": _now_iso(), "equity": equity})
