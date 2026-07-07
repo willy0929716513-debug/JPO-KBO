@@ -29,6 +29,7 @@ from src.data.providers.macro_provider import MacroProvider
 from src.data.providers.sentiment_provider import SentimentProvider
 from src.data.providers.yfinance_provider import YFinanceProvider
 from src.features.feature_pipeline import FeaturePipeline
+from src.pipeline import auto_trader
 from src.regime.detector import RegimeDetector
 from src.risk.limits import LossLimitMonitor
 from src.risk.portfolio_risk import DrawdownCircuitBreaker, max_drawdown
@@ -375,6 +376,20 @@ def run_daily_pipeline() -> dict:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(_json_safe(payload), f, indent=2, default=str, allow_nan=False)
     logger.info("Wrote %d signals to %s", len(results), out_path)
+
+    # Always-on paper-trading auto-follower: advances its own persistent
+    # virtual portfolio by one tick every pipeline run (this function already
+    # runs ~24/7 via the self-chaining GitHub Actions workflow), so auto-follow
+    # keeps trading even when nobody has the dashboard open -- unlike the
+    # original browser-only auto-trade toggle in docs/assets/paper.js, which
+    # only ever evaluates while that page is sitting open in a tab.
+    try:
+        auto_state_path = DOCS_DATA_DIR / "auto_trade_state.json"
+        auto_state = auto_trader.load_state(auto_state_path)
+        auto_state = auto_trader.run_tick(results, auto_state)
+        auto_trader.save_state(auto_state_path, auto_state)
+    except Exception as exc:
+        logger.error("Auto-trader tick failed (signals output above is unaffected): %s", exc)
 
     history_path = DOCS_DATA_DIR / "history.json"
     history = []
