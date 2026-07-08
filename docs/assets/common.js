@@ -136,6 +136,21 @@ function confidenceDots(c) {
   ).join("");
 }
 
+// Star/rocket ranking badge for the "🚀 最強推薦" page -- calibrated
+// against this system's actual observed decision_engine.confidence range
+// for actionable (non-HOLD, non-vetoed) signals, which tops out around
+// ~0.30-0.32 and rarely goes higher (a weighted blend across technical/
+// macro/risk agents with a low +-0.15 BUY/SELL cutoff), NOT a naive 0-1
+// scale -- reusing confidenceLabel's 0.3/0.6 thresholds here would show
+// "低" (low) for nearly every real actionable signal. rank is the pick's
+// 0-based position after sorting by confidence descending across the
+// whole watchlist.
+function pickStrengthBadge(rank, confidence) {
+  if (rank === 0) return `<span class="badge badge-rocket" title="本日信心度最高的一檔">🚀 最強推薦</span>`;
+  const stars = confidence >= 0.25 ? "⭐⭐⭐" : confidence >= 0.20 ? "⭐⭐" : "⭐";
+  return `<span class="badge badge-star" title="信心度 ${(confidence * 100).toFixed(0)}%">${stars}</span>`;
+}
+
 // The single "what should I actually do" answer for a symbol. Previously
 // this only ever fell back to HOLD on an explicit risk veto, otherwise
 // showing s.signal.final_action -- the raw technical-strategy-combiner
