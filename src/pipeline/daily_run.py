@@ -134,6 +134,37 @@ def _load_news(symbol: str, asset_class: str) -> list[dict]:
     return YFinanceProvider().get_news(symbol)
 
 
+TAIEX_SYMBOL = "^TWII"  # Yahoo Finance ticker for the Taiwan Weighted Index (加權股價指數)
+
+
+def _fetch_taiex_snapshot(previous_taiex: dict | None) -> dict | None:
+    """A single overall "is the whole Taiwan market up or down today"
+    figure -- distinct from any individual stock pick, this is the
+    broad-market context users look for first (per user request: "大盤
+    總共" = the benchmark index as a whole). Mirrors the same carry-forward-
+    when-closed and prev-close-based change_pct logic every individual
+    symbol already uses, just for the index itself rather than a strategy
+    signal -- no regime/strategy/decision-engine analysis needed here."""
+    market_open = is_market_open("taiwan")
+    if not market_open and previous_taiex:
+        return {**previous_taiex, "market_open": False}
+    try:
+        df = _load_ohlcv(TAIEX_SYMBOL, "taiwan")
+        if df.empty or pd.isna(df["close"].iloc[-1]):
+            return previous_taiex
+        prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 and not pd.isna(df["close"].iloc[-2]) else None
+        price = float(df["close"].iloc[-1])
+        change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close else None
+        change_pts = round(price - prev_close, 2) if prev_close else None
+        return {
+            "symbol": TAIEX_SYMBOL, "price": price, "change_pct": change_pct, "change_pts": change_pts,
+            "as_of": str(df.index[-1]), "market_open": market_open,
+        }
+    except Exception as exc:
+        logger.warning("Failed fetching TAIEX snapshot: %s", exc)
+        return previous_taiex
+
+
 def _json_safe(obj):
     """Recursively replaces NaN/Infinity floats with None so json.dump produces
     strictly valid JSON. Python's json module writes bare `NaN` / `Infinity`
@@ -311,6 +342,7 @@ def run_daily_pipeline() -> dict:
     previous_payload = _load_previous_payload()
     previous_by_symbol = {s["symbol"]: s for s in previous_payload.get("signals", [])}
     previous_pairs_by_key = {(p["symbol_a"], p["symbol_b"]): p for p in previous_payload.get("pairs_signals", [])}
+    taiex = _fetch_taiex_snapshot(previous_payload.get("taiex"))
 
     sentiment = SentimentProvider().get_crypto_fear_greed()
     sentiment_snapshot = {"crypto_fear_greed": sentiment}
@@ -407,6 +439,7 @@ def run_daily_pipeline() -> dict:
         "market_sentiment": sentiment_snapshot,
         "macro_snapshot": macro_snapshot,
         "portfolio_risk_status": portfolio_risk_status,
+        "taiex": taiex,
         "signals": results,
         "pairs_signals": pairs_signals,
     }
