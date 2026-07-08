@@ -58,10 +58,12 @@ function renderServerAutoTrader(state) {
   const unrealized = Object.entries(state.positions).reduce((sum, [symbol, pos]) => {
     const cur = AUTO_TRADE_LATEST_PRICES[symbol];
     if (!cur) return sum;
-    const diff = pos.side === "long" ? (cur - pos.avg_price) : (pos.avg_price - cur);
+    const entryTwd = toTwd(pos.avg_price, pos.asset_class);
+    const curTwd = toTwd(cur, pos.asset_class);
+    const diff = pos.side === "long" ? (curTwd - entryTwd) : (entryTwd - curTwd);
     return sum + diff * pos.qty;
   }, 0);
-  const positionsValue = Object.values(state.positions).reduce((sum, p) => sum + p.avg_price * p.qty, 0);
+  const positionsValue = Object.values(state.positions).reduce((sum, p) => sum + toTwd(p.avg_price, p.asset_class) * p.qty, 0);
   const equity = state.cash + positionsValue + unrealized;
   const totalPnl = equity - state.starting_cash;
   const totalReturnPct = (totalPnl / state.starting_cash) * 100;
@@ -117,7 +119,9 @@ function renderServerAutoTrader(state) {
     } else {
       const cardsHtml = entries.map(([symbol, pos], i) => {
         const cur = AUTO_TRADE_LATEST_PRICES[symbol];
-        const diff = cur ? (pos.side === "long" ? cur - pos.avg_price : pos.avg_price - cur) : 0;
+        const entryTwd = toTwd(pos.avg_price, pos.asset_class);
+        const curTwd = cur ? toTwd(cur, pos.asset_class) : null;
+        const diff = curTwd != null ? (pos.side === "long" ? curTwd - entryTwd : entryTwd - curTwd) : 0;
         const pnl = diff * pos.qty;
         const pnlClass = pnl >= 0 ? "live-up" : "live-down";
         const isExtra = i >= PICK_GRID_COLLAPSE_THRESHOLD;
@@ -127,7 +131,8 @@ function renderServerAutoTrader(state) {
             <div class="pick-name">${SYMBOL_NAMES[symbol] || symbol} <span class="pick-symbol">${symbol}</span></div>
             <span class="badge ${pos.side === "long" ? "badge-buy" : "badge-sell"}">${pos.side === "long" ? "做多" : "做空"}</span>
           </div>
-          <div class="num">數量 ${pos.qty} ${quantityUnitLabel(pos.asset_class)}｜成本 ${fmtNum(pos.avg_price, 2)}｜現價 ${cur ? fmtNum(cur, 2) : "-"}</div>
+          <div class="num">數量 ${pos.qty} ${quantityUnitLabel(pos.asset_class)}｜成本 ${fmtNum(pos.avg_price, 2)}${currencyOf(pos.asset_class) === "USD" ? " 美元" : ""}｜現價 ${cur ? fmtNum(cur, 2) : "-"}</div>
+          <div class="num footnote">開倉金額：${amountLabelTwd(pos.avg_price, pos.qty, pos.asset_class)}</div>
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
           ${(pos.stop_loss != null || pos.take_profit != null) ? `<div class="num footnote">停損 ${pos.stop_loss != null ? fmtNum(pos.stop_loss, 2) : "-"}｜停利 ${pos.take_profit != null ? fmtNum(pos.take_profit, 2) : "-"}</div>` : ""}
           <div class="footnote">持有 ${heldDays} 天 · 開倉時間 ${new Date(pos.opened_at).toLocaleString()}</div>
@@ -166,8 +171,8 @@ function renderServerAutoTrader(state) {
         <td data-label="方向">${h.side === "long" ? "做多" : "做空"}</td>
         <td data-label="動作">${actionLabel}</td>
         <td data-label="數量">${h.qty} ${quantityUnitLabel(h.asset_class)}</td>
-        <td data-label="價格">${fmtNum(h.price, 2)}</td>
-        <td data-label="損益">${(h.pnl === undefined || h.pnl === null) ? "-" : `${h.pnl >= 0 ? "+" : ""}${fmtNum(h.pnl, 0)}`}</td>
+        <td data-label="價格">${fmtNum(h.price, 2)}${h.currency === "USD" ? " 美元" : ""}</td>
+        <td data-label="損益">${(h.pnl === undefined || h.pnl === null) ? "-" : `${h.pnl >= 0 ? "+" : ""}${fmtNum(h.pnl, 0)}${h.pnl_usd != null ? `（≈US$${h.pnl_usd >= 0 ? "+" : ""}${fmtNum(h.pnl_usd, 0)}）` : ""}`}</td>
       </tr>`;
     }).join("");
     historyEl.innerHTML = rows || `<tr><td colspan="7">尚無交易紀錄</td></tr>`;

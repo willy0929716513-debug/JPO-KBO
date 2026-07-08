@@ -35,6 +35,27 @@ AUTO_TRADE_NOTIONAL = AUTO_TRADER_STARTING_CASH * 0.1
 MAX_HISTORY_ENTRIES = 200
 MAX_EQUITY_POINTS = 300
 
+# This account's cash is one flat "virtual TWD" pool, but only the "taiwan"
+# watchlist is actually quoted in TWD -- everything else (US equities/ETFs,
+# metals, energy, forex pairs, crypto) is quoted in raw USD. Per user
+# request: convert USD-quoted prices to a TWD equivalent at a fixed
+# approximate rate before they touch cash/budget/equity math, rather than
+# spending "4113" out of a "10000" pool for one ounce of gold priced at
+# $4,113 as if that dollar figure were TWD. A side effect of doing this
+# honestly: very high-priced USD assets (gold, Bitcoin) become genuinely
+# unaffordable for a NT$10,000 account, same as in real life -- that's
+# correct, not a bug.
+USD_TWD_RATE = 30.0
+USD_QUOTED_ASSET_CLASSES = {"equity", "etf", "metal", "energy", "forex", "crypto"}
+
+
+def _currency_of(asset_class: str | None) -> str:
+    return "USD" if asset_class in USD_QUOTED_ASSET_CLASSES else "TWD"
+
+
+def _to_twd(price: float, asset_class: str | None) -> float:
+    return price * USD_TWD_RATE if _currency_of(asset_class) == "USD" else price
+
 # Per user request: "不要盲目下單，要經過分析考慮" -- don't blindly follow
 # every recommendation regardless of how weak or historically unreliable it
 # is. Calibrated against real production data rather than picked round: the
@@ -139,14 +160,23 @@ def _dominant_strategy_profit_factor(entry: dict, action: str) -> float | None:
 
 
 def _unrealized_pnl(pos: dict, current_price: float | None) -> float:
+    """Returns unrealized P&L in TWD terms (this account's cash unit) --
+    both prices are converted through _to_twd() before comparing, so a USD
+    position's fluctuation is measured in the same unit its cash impact
+    will actually be settled in."""
     if current_price is None:
         return 0.0
-    diff = (current_price - pos["avg_price"]) if pos["side"] == "long" else (pos["avg_price"] - current_price)
+    asset_class = pos.get("asset_class")
+    entry_twd = _to_twd(pos["avg_price"], asset_class)
+    current_twd = _to_twd(current_price, asset_class)
+    diff = (current_twd - entry_twd) if pos["side"] == "long" else (entry_twd - current_twd)
     return diff * pos["qty"]
 
 
 def _compute_equity(state: dict, by_symbol: dict) -> float:
-    positions_value = sum(pos["avg_price"] * pos["qty"] for pos in state["positions"].values())
+    positions_value = sum(
+        _to_twd(pos["avg_price"], pos.get("asset_class")) * pos["qty"] for pos in state["positions"].values()
+    )
     unrealized = sum(
         _unrealized_pnl(pos, (by_symbol.get(symbol) or {}).get("last_price"))
         for symbol, pos in state["positions"].items()
@@ -161,8 +191,12 @@ def _push_history(state: dict, entry: dict) -> None:
 
 def _close_position(state: dict, symbol: str, price: float, close_reason: str | None) -> None:
     pos = state["positions"].pop(symbol)
-    pnl = (price - pos["avg_price"]) * pos["qty"] if pos["side"] == "long" else (pos["avg_price"] - price) * pos["qty"]
-    state["cash"] += pos["avg_price"] * pos["qty"] + pnl
+    asset_class = pos.get("asset_class")
+    currency = pos.get("currency", _currency_of(asset_class))
+    entry_twd = _to_twd(pos["avg_price"], asset_class)
+    exit_twd = _to_twd(price, asset_class)
+    pnl = (exit_twd - entry_twd) * pos["qty"] if pos["side"] == "long" else (entry_twd - exit_twd) * pos["qty"]
+    state["cash"] += entry_twd * pos["qty"] + pnl
 
     state["realized_pnl"] += pnl
     state["realized_pnl_by_symbol"][symbol] = state["realized_pnl_by_symbol"].get(symbol, 0.0) + pnl
@@ -171,10 +205,18 @@ def _close_position(state: dict, symbol: str, price: float, close_reason: str | 
     state["trade_stats"][bucket] += 1
     state["trade_stats"][magnitude_key] += abs(pnl)
 
+    # pnl above is always in TWD (this account's cash unit); pnl_usd is an
+    # extra, purely informational figure in the position's native currency
+    # for USD-quoted assets, per user request to also see the actual dollar
+    # amount, not just its TWD-converted equivalent.
+    pnl_usd = None
+    if currency == "USD":
+        pnl_usd = (price - pos["avg_price"]) * pos["qty"] if pos["side"] == "long" else (pos["avg_price"] - price) * pos["qty"]
+
     _push_history(state, {
         "symbol": symbol, "side": pos["side"], "action": "close",
-        "qty": pos["qty"], "price": price, "pnl": pnl, "close_reason": close_reason,
-        "asset_class": pos.get("asset_class"),
+        "qty": pos["qty"], "price": price, "pnl": pnl, "pnl_usd": pnl_usd, "currency": currency,
+        "close_reason": close_reason, "asset_class": asset_class,
     })
 
 
@@ -245,35 +287,36 @@ def run_tick(signals: list[dict], state: dict) -> dict:
         # in the same batch a shrinking budget regardless of their own confidence.
         for s, action, confidence in candidates:
             price = s["last_price"]
+            asset_class = s.get("asset_class")
+            currency = _currency_of(asset_class)
+            price_twd = _to_twd(price, asset_class)
             share = confidence / total_confidence if total_confidence > 0 else 1.0 / len(candidates)
             budget = min(available_cash * share, AUTO_TRADE_NOTIONAL)
-            qty = int(budget // price)
-            # A single unit of a high-price asset (gold/oil/crypto priced in
-            # USD terms, while this account's cash is one flat notional
-            # pool with no currency conversion) can cost more than its
-            # whole confidence-weighted slice of the per-symbol notional
-            # cap -- qty rounding down to 0 there silently excludes that
-            # symbol from ever trading at all, no matter how strong the
-            # signal, purely because of price scale rather than the actual
-            # analysis. If the account can genuinely afford at least one
-            # whole unit from its real remaining cash, buy exactly one
-            # instead of zero (a smaller account naturally holds fewer,
-            # occasionally more concentrated positions in expensive assets
-            # -- that's a real consequence of the capital size, not a bug).
-            if qty == 0 and price <= state["cash"]:
+            qty = int(budget // price_twd)
+            # A single unit of a moderately-priced USD asset can cost more
+            # than its whole confidence-weighted slice of the per-symbol
+            # notional cap -- qty rounding down to 0 there would silently
+            # exclude that symbol from ever trading at all, no matter how
+            # strong the signal. If the account can genuinely afford at
+            # least one whole unit (in TWD-equivalent terms) from its real
+            # remaining cash, buy exactly one instead of zero. Very
+            # high-priced USD assets (gold, Bitcoin) still end up
+            # unaffordable even at qty=1 once converted to TWD -- same as
+            # in real life, a NT$10,000 account can't buy 1oz of gold.
+            if qty == 0 and price_twd <= state["cash"]:
                 qty = 1
-            notional = qty * price
-            if qty > 0 and notional <= state["cash"]:
-                state["cash"] -= notional
+            notional_twd = qty * price_twd
+            if qty > 0 and notional_twd <= state["cash"]:
+                state["cash"] -= notional_twd
                 side = "long" if action == "BUY" else "short"
                 state["positions"][s["symbol"]] = {
                     "side": side, "qty": qty, "avg_price": price, "opened_at": _now_iso(),
                     "stop_loss": s["signal"].get("stop_loss"), "take_profit": s["signal"].get("take_profit"),
-                    "asset_class": s.get("asset_class"),
+                    "asset_class": asset_class, "currency": currency,
                 }
                 _push_history(state, {
                     "symbol": s["symbol"], "side": side, "action": "open", "qty": qty, "price": price,
-                    "asset_class": s.get("asset_class"),
+                    "asset_class": asset_class, "currency": currency,
                 })
 
     equity = _compute_equity(state, by_symbol)
