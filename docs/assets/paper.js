@@ -311,6 +311,59 @@ function paperPromptOpen(symbol, side) {
   updateCost();
 }
 
+// Lets the user adjust an already-open position's stop-loss/take-profit
+// after the fact -- per user request, opening a position with a level
+// shouldn't lock it in forever; market conditions change and you may want
+// to move your stop or target without closing and reopening the position.
+function paperPromptEditStops(symbol) {
+  const state = paperLoadState();
+  const pos = state.positions[symbol];
+  if (!pos) {
+    alert("這檔目前沒有模擬持倉。");
+    return;
+  }
+  const price = PAPER_LATEST_PRICES[symbol];
+  const name = SYMBOL_NAMES[symbol] || symbol;
+  const sideZh = pos.side === "long" ? "做多" : "做空";
+
+  paperShowModal({
+    title: `調整停損／停利：${name}（${sideZh}）`,
+    confirmLabel: "儲存",
+    bodyHtml: `
+      <div class="footnote">${price ? `目前價格 ${fmtNum(price, 2)}` : ""}　持倉成本 ${fmtNum(pos.avgPrice, 2)}</div>
+      <div class="footnote" style="margin-top:6px">留空表示不設定停損/停利，碰到會自動平倉</div>
+      <div class="paper-modal-stops-row">
+        <label>停損<input type="number" id="paper-modal-stop-input" step="any" value="${pos.stopLoss != null ? pos.stopLoss : ""}" placeholder="不設定" /></label>
+        <label>停利<input type="number" id="paper-modal-target-input" step="any" value="${pos.takeProfit != null ? pos.takeProfit : ""}" placeholder="不設定" /></label>
+      </div>
+    `,
+    onConfirm: (el) => {
+      const stopRaw = el.querySelector("#paper-modal-stop-input").value;
+      const targetRaw = el.querySelector("#paper-modal-target-input").value;
+      const stopLoss = stopRaw === "" ? null : parseFloat(stopRaw);
+      const takeProfit = targetRaw === "" ? null : parseFloat(targetRaw);
+      if (stopLoss != null && isNaN(stopLoss)) { alert("停損價格不合法。"); return false; }
+      if (takeProfit != null && isNaN(takeProfit)) { alert("停利價格不合法。"); return false; }
+      // Sanity-checked against the position's own cost basis, not the live
+      // price -- the live price may already have moved past a level the
+      // user is deliberately trying to set (e.g. tightening a stop after a
+      // rally), which is legitimate and shouldn't be blocked.
+      const stopOk = stopLoss == null || (pos.side === "long" ? stopLoss < pos.avgPrice : stopLoss > pos.avgPrice);
+      const targetOk = takeProfit == null || (pos.side === "long" ? takeProfit > pos.avgPrice : takeProfit < pos.avgPrice);
+      if (!stopOk) { alert(pos.side === "long" ? "做多的停損價必須低於持倉成本。" : "做空的停損價必須高於持倉成本。"); return false; }
+      if (!targetOk) { alert(pos.side === "long" ? "做多的停利價必須高於持倉成本。" : "做空的停利價必須低於持倉成本。"); return false; }
+
+      const latestState = paperLoadState();
+      const latestPos = latestState.positions[symbol];
+      if (!latestPos) { alert("這檔的模擬持倉已經不存在了。"); return false; }
+      latestPos.stopLoss = stopLoss;
+      latestPos.takeProfit = takeProfit;
+      paperSaveState(latestState);
+      paperRenderAll();
+    },
+  });
+}
+
 function paperSetAutoTrade(enabled) {
   const state = paperLoadState();
   state.autoTradeEnabled = enabled;
@@ -569,6 +622,7 @@ function renderTradeButtons(scopeEl) {
       el.innerHTML = `<div class="paper-position-badge">
         <span>模擬持倉：${pos.side === "long" ? "做多" : "做空"} ${pos.qty} ${quantityUnitLabel(pos.assetClass)} @ ${fmtNum(pos.avgPrice, 2)}（金額 ${amountLabelTwd(pos.avgPrice, pos.qty, pos.assetClass)}）</span>
         <span class="${pnlClass}">未實現損益 ${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</span>
+        <button class="pill pill-btn small" onclick="paperPromptEditStops('${symbol}')">調整停損/停利</button>
         <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
       </div>`;
     } else {
@@ -678,7 +732,10 @@ function paperRenderDashboardPage() {
           <div class="num ${pnlClass}">未實現損益：${pnl >= 0 ? "+" : ""}${fmtNum(pnl, 0)}</div>
           ${(pos.stopLoss != null || pos.takeProfit != null) ? `<div class="num footnote">停損 ${pos.stopLoss != null ? fmtNum(pos.stopLoss, 2) : "-"}｜停利 ${pos.takeProfit != null ? fmtNum(pos.takeProfit, 2) : "-"}（碰到會自動平倉）</div>` : ""}
           <div class="footnote">來源：${pos.source === "auto" ? "自動跟單" : "手動模擬"} · 持有 ${heldDays} 天 · 開倉時間 ${new Date(pos.openedAt).toLocaleString()}</div>
-          <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
+          <div class="pick-trade-actions-row">
+            <button class="pill pill-btn small" onclick="paperPromptEditStops('${symbol}')">調整停損/停利</button>
+            <button class="pill pill-btn small" onclick="paperClosePosition('${symbol}')">模擬平倉</button>
+          </div>
         </div>`;
       }).join("");
       const toggleHtml = entries.length > PICK_GRID_COLLAPSE_THRESHOLD
