@@ -267,6 +267,33 @@ def test_load_state_self_heals_when_persisted_capital_is_stale(tmp_path):
     assert reloaded["positions"] == {}
 
 
+def test_load_state_self_heals_when_position_predates_currency_field(tmp_path):
+    """Regression test for a real production bug: a position opened before
+    the USD/TWD conversion fix has its cost deducted from cash UNconverted
+    but would now be valued at its correct (much higher, for USD assets)
+    TWD-converted price -- producing a large phantom "gain" that's really
+    just an accounting-unit mismatch, not real profit. Confirmed against
+    real production data: a gold position entered at $4,115.5 (deducted as
+    if that were TWD) got revalued at $4,115.5 * 30 once the conversion
+    fix shipped, showing a fake +119,349 "gain" on a single position. Any
+    position missing "currency" is a reliable signal it predates the fix
+    and the whole account should self-heal fresh, same pattern as the
+    starting-capital check above."""
+    path = tmp_path / "auto_trade_state.json"
+    stale_state = auto_trader._empty_state()
+    stale_state["cash"] = 5_884.5
+    stale_state["positions"]["GC=F"] = {
+        "side": "short", "qty": 1, "avg_price": 4115.5, "opened_at": "t",
+        "stop_loss": 4295.0, "take_profit": 3756.4, "asset_class": "metal",
+        # no "currency" key -- exactly what a pre-fix position looks like
+    }
+    auto_trader.save_state(path, stale_state)
+
+    reloaded = auto_trader.load_state(path)
+    assert reloaded["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+    assert reloaded["positions"] == {}
+
+
 def _synthetic_df(seed: int, n: int = 400) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     dates = pd.date_range("2024-01-01", periods=n, freq="D")

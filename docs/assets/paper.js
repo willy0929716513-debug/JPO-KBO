@@ -44,7 +44,19 @@ function paperLoadState() {
     const raw = localStorage.getItem(PAPER_STORAGE_KEY);
     if (raw) {
       const state = JSON.parse(raw);
-      if (state && typeof state === "object" && state.positions) return paperNormalizeState(state);
+      // A position missing "currency" was opened before USD-quoted prices
+      // started being converted to a TWD equivalent for cash/equity
+      // accounting (see toTwd() in common.js) -- its cost was deducted
+      // from cash UNconverted, but would now be valued at its correct
+      // TWD-converted price (~30x higher for a USD asset), producing a
+      // large phantom "gain" that's just an accounting-unit mismatch, not
+      // a real trading profit. Same self-healing signal as the Python
+      // side's load_state() -- see src/pipeline/auto_trader.py.
+      const staleCurrencySchema = state && state.positions
+        && Object.values(state.positions).some((pos) => !("currency" in pos));
+      if (state && typeof state === "object" && state.positions && !staleCurrencySchema) {
+        return paperNormalizeState(state);
+      }
     }
   } catch (err) {
     console.warn("Paper trading state was corrupted, resetting.", err);

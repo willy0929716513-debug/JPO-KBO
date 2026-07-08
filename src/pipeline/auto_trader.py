@@ -98,7 +98,22 @@ def load_state(path: Path) -> dict:
             # state file. Re-seeding here means the very next pipeline tick
             # self-heals it, without needing a one-off manual data commit that
             # would just race the next automated tick to this same file anyway.
-            if isinstance(state, dict) and "positions" in state and state.get("starting_cash") == AUTO_TRADER_STARTING_CASH:
+            #
+            # Same reasoning applies to any open position missing "currency":
+            # that field was only added once USD-quoted prices started being
+            # converted to a TWD equivalent for cash/equity accounting (see
+            # _to_twd()). A position opened before that change had its cost
+            # deducted from cash UNconverted (e.g. paying a raw "4115" for
+            # gold priced at $4,115), but would now be valued at its correct
+            # TWD-converted price (~30x higher for a USD asset) -- producing
+            # a large phantom "gain" that's really just an accounting-unit
+            # mismatch between when the position was opened and how it's
+            # valued now, not a real trading profit. Resetting on this
+            # signal is the same self-healing pattern as the capital check.
+            stale_currency_schema = any("currency" not in pos for pos in state.get("positions", {}).values())
+            if (isinstance(state, dict) and "positions" in state
+                    and state.get("starting_cash") == AUTO_TRADER_STARTING_CASH
+                    and not stale_currency_schema):
                 return state
         except Exception:
             pass
