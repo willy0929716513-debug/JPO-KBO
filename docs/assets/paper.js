@@ -364,7 +364,15 @@ function paperAutoTradeTick(payload) {
       const confidence = effectiveConfidence(s);
       const share = totalConfidence > 0 ? confidence / totalConfidence : 1 / candidates.length;
       const budget = Math.min(availableCash * share, PAPER_AUTO_TRADE_NOTIONAL);
-      const qty = Math.floor(budget / price);
+      let qty = Math.floor(budget / price);
+      // A single unit of a high-price asset (gold/oil/crypto priced in USD
+      // terms, while this account's cash is one flat notional pool with no
+      // currency conversion) can cost more than its whole confidence-
+      // weighted slice of the per-symbol notional cap -- qty rounding down
+      // to 0 there would silently exclude that symbol from ever trading at
+      // all, no matter how strong the signal. Buy exactly one unit instead
+      // of zero if the account can genuinely afford it.
+      if (qty === 0 && price <= state.cash) qty = 1;
       const notional = qty * price;
       if (qty > 0 && notional <= state.cash) {
         state.cash -= notional;

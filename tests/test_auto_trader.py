@@ -83,6 +83,26 @@ def test_skips_recommendation_from_a_historically_losing_strategy():
     assert "GOODFIT" in state["positions"]
 
 
+def test_high_price_asset_still_buys_one_unit_instead_of_being_silently_skipped():
+    """Regression test for a real production bug: gold/oil/crypto are priced
+    in USD terms while this account's cash is one flat notional pool with
+    no currency conversion, so a qualifying candidate's confidence-weighted
+    slice of AUTO_TRADE_NOTIONAL ($1,000 under the $10,000 account) can be
+    smaller than a single unit's price (e.g. gold at ~$4,113/oz) -- qty
+    would round down to 0 and silently exclude that symbol from ever
+    trading, no matter how strong its signal. Confirmed via real production
+    data (GC=F, confidence 0.232, profit_factor 1.167 -- passed every
+    filter but qty computed to 0)."""
+    state = auto_trader._empty_state()
+    expensive = _signal("GC=F", "SELL", 4113.10, confidence=0.232,
+                         backtest={"trend_following": {"profit_factor": 1.167}},
+                         votes=[{"strategy": "trend_following", "action": "SELL", "confidence": 0.665, "weight": 1.5}])
+    state = auto_trader.run_tick([expensive], state)
+
+    assert "GC=F" in state["positions"]
+    assert state["positions"]["GC=F"]["qty"] == 1
+
+
 def test_position_size_scales_with_confidence():
     """A higher-confidence candidate should get a proportionally larger
     allocation than a lower-confidence one, not an identical flat split.

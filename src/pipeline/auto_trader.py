@@ -248,6 +248,20 @@ def run_tick(signals: list[dict], state: dict) -> dict:
             share = confidence / total_confidence if total_confidence > 0 else 1.0 / len(candidates)
             budget = min(available_cash * share, AUTO_TRADE_NOTIONAL)
             qty = int(budget // price)
+            # A single unit of a high-price asset (gold/oil/crypto priced in
+            # USD terms, while this account's cash is one flat notional
+            # pool with no currency conversion) can cost more than its
+            # whole confidence-weighted slice of the per-symbol notional
+            # cap -- qty rounding down to 0 there silently excludes that
+            # symbol from ever trading at all, no matter how strong the
+            # signal, purely because of price scale rather than the actual
+            # analysis. If the account can genuinely afford at least one
+            # whole unit from its real remaining cash, buy exactly one
+            # instead of zero (a smaller account naturally holds fewer,
+            # occasionally more concentrated positions in expensive assets
+            # -- that's a real consequence of the capital size, not a bug).
+            if qty == 0 and price <= state["cash"]:
+                qty = 1
             notional = qty * price
             if qty > 0 and notional <= state["cash"]:
                 state["cash"] -= notional
