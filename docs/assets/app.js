@@ -303,8 +303,8 @@ function renderHistory(history) {
     data: {
       labels,
       datasets: [
-        { label: "做多", data: buyCounts, borderColor: "#22c55e", backgroundColor: "#22c55e33", tension: 0.3 },
-        { label: "做空", data: sellCounts, borderColor: "#ef4444", backgroundColor: "#ef444433", tension: 0.3 },
+        { label: "做多", data: buyCounts, borderColor: "#ef4444", backgroundColor: "#ef444433", tension: 0.3 },
+        { label: "做空", data: sellCounts, borderColor: "#22c55e", backgroundColor: "#22c55e33", tension: 0.3 },
       ],
     },
     options: {
