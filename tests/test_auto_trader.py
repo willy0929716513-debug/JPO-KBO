@@ -83,24 +83,64 @@ def test_skips_recommendation_from_a_historically_losing_strategy():
     assert "GOODFIT" in state["positions"]
 
 
-def test_high_price_asset_still_buys_one_unit_instead_of_being_silently_skipped():
-    """Regression test for a real production bug: gold/oil/crypto are priced
-    in USD terms while this account's cash is one flat notional pool with
-    no currency conversion, so a qualifying candidate's confidence-weighted
-    slice of AUTO_TRADE_NOTIONAL ($1,000 under the $10,000 account) can be
-    smaller than a single unit's price (e.g. gold at ~$4,113/oz) -- qty
-    would round down to 0 and silently exclude that symbol from ever
-    trading, no matter how strong its signal. Confirmed via real production
-    data (GC=F, confidence 0.232, profit_factor 1.167 -- passed every
-    filter but qty computed to 0)."""
+def test_moderately_priced_usd_asset_still_buys_one_unit_instead_of_zero():
+    """Regression test for a real production bug: a qualifying USD-quoted
+    candidate's confidence-weighted slice of AUTO_TRADE_NOTIONAL ($1,000
+    under the $10,000 account) can be smaller than a single unit's
+    TWD-converted price -- qty would round down to 0 and silently exclude
+    that symbol from ever trading, no matter how strong its signal. A
+    moderately-priced USD asset (here ~$116, i.e. NT$3,480 at the 30:1
+    conversion rate -- well within total cash, but bigger than the $1,000
+    per-symbol notional slice) should still buy 1 unit rather than 0."""
     state = auto_trader._empty_state()
-    expensive = _signal("GC=F", "SELL", 4113.10, confidence=0.232,
+    moderate = _signal("SI=F", "SELL", 116.0, confidence=0.30, asset_class="metal",
+                        backtest={"trend_following": {"profit_factor": 1.5}},
+                        votes=[{"strategy": "trend_following", "action": "SELL", "confidence": 0.665, "weight": 1.5}])
+    state = auto_trader.run_tick([moderate], state)
+
+    assert "SI=F" in state["positions"]
+    assert state["positions"]["SI=F"]["qty"] == 1
+    assert state["positions"]["SI=F"]["currency"] == "USD"
+    assert state["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH - 116.0 * auto_trader.USD_TWD_RATE
+
+
+def test_very_high_priced_usd_asset_stays_unaffordable_even_at_qty_one():
+    """Gold at real prices (~$4,113/oz) converts to over NT$123,000 at the
+    30:1 rate -- more than the entire NT$10,000 account, so it correctly
+    stays untradeable even with the "buy at least 1 unit" fallback. A
+    NT$10,000 account genuinely cannot buy 1oz of gold in real life either
+    -- this is accurate, not a bug."""
+    state = auto_trader._empty_state()
+    expensive = _signal("GC=F", "SELL", 4113.10, confidence=0.232, asset_class="metal",
                          backtest={"trend_following": {"profit_factor": 1.167}},
                          votes=[{"strategy": "trend_following", "action": "SELL", "confidence": 0.665, "weight": 1.5}])
     state = auto_trader.run_tick([expensive], state)
 
-    assert "GC=F" in state["positions"]
-    assert state["positions"]["GC=F"]["qty"] == 1
+    assert "GC=F" not in state["positions"]
+    assert state["cash"] == auto_trader.AUTO_TRADER_STARTING_CASH
+
+
+def test_taiwan_asset_prices_are_not_fx_converted():
+    """Taiwan-listed symbols are already quoted in TWD -- _to_twd() must be
+    a no-op for them, not multiplied by USD_TWD_RATE."""
+    assert auto_trader._to_twd(100.0, "taiwan") == 100.0
+    assert auto_trader._to_twd(100.0, "metal") == 100.0 * auto_trader.USD_TWD_RATE
+
+
+def test_closing_usd_position_reports_both_twd_and_usd_pnl():
+    state = auto_trader._empty_state()
+    state["positions"]["SI=F"] = {
+        "side": "short", "qty": 10, "avg_price": 100.0, "opened_at": "t",
+        "stop_loss": None, "take_profit": None, "asset_class": "metal", "currency": "USD",
+    }
+    signals = [_signal("SI=F", "HOLD", 90.0, asset_class="metal")]  # price fell 10 -- a short profits
+    state = auto_trader.run_tick(signals, state)
+
+    assert "SI=F" not in state["positions"]
+    close_entry = state["history"][0]
+    assert close_entry["currency"] == "USD"
+    assert close_entry["pnl_usd"] == 100.0  # (100 - 90) * 10, in raw USD
+    assert close_entry["pnl"] == 100.0 * auto_trader.USD_TWD_RATE  # same move, TWD-converted for cash accounting
 
 
 def test_position_size_scales_with_confidence():

@@ -55,6 +55,32 @@ function quantityUnitLabel(assetClass) {
   return "單位";
 }
 
+// Mirrors src/pipeline/auto_trader.py's USD_TWD_RATE/_to_twd() exactly --
+// both paper-trading accounts' cash is one flat "virtual TWD" pool, but
+// only Taiwan-listed symbols are actually quoted in TWD; everything else
+// (US equities/ETFs, metals, energy, forex, crypto) is quoted in raw USD.
+// Converting at a fixed approximate rate before touching cash/budget math
+// avoids spending "4113" out of a "10000" pool for a $4,113 asset as if
+// that dollar figure were TWD.
+const USD_TWD_RATE = 30;
+const USD_QUOTED_ASSET_CLASSES = new Set(["equity", "etf", "metal", "energy", "forex", "crypto"]);
+function currencyOf(assetClass) {
+  return USD_QUOTED_ASSET_CLASSES.has(assetClass) ? "USD" : "TWD";
+}
+function toTwd(price, assetClass) {
+  return currencyOf(assetClass) === "USD" ? price * USD_TWD_RATE : price;
+}
+
+// Formats a cost/value amount in TWD (this account's cash unit), with the
+// real USD-equivalent shown in parentheses for USD-quoted assets -- per
+// user request, whenever a trade touches USD, show the actual dollar
+// figure too, not just its TWD-converted equivalent.
+function amountLabelTwd(nativePrice, qty, assetClass) {
+  const twdText = `${Math.round(toTwd(nativePrice, assetClass) * qty).toLocaleString()} 虛擬台幣`;
+  if (currencyOf(assetClass) !== "USD") return twdText;
+  return `${twdText}（≈US$${Math.round(nativePrice * qty).toLocaleString()}）`;
+}
+
 function badgeClass(action) {
   if (action === "BUY") return "badge-buy";
   if (action === "SELL") return "badge-sell";
