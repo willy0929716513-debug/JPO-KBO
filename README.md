@@ -88,7 +88,7 @@ scripts/run_pipeline.py   # 本地手動執行整套 pipeline 的 CLI 入口
 | **真正的風險平價** `src/portfolio/allocator.py: risk_parity()` | 用 `scipy.optimize` 對共變異數矩陣求解等風險貢獻權重，考慮資產間相關性，不是單純反波動度加權。同樣**只是獨立函式，`daily_run.py` 沒有呼叫** |
 | **模擬執行引擎** `src/execution/` | `simulate_bracket_order` / `simulate_oco_order` / `simulate_trailing_stop`（判斷停利停損哪個先觸發）、`simulate_twap_execution` / `simulate_vwap_execution` / `simulate_pov_execution`（拆單模擬 + 滑價評估） |
 | **輕量 MLOps** `src/mlops/` | `ModelRegistry`（本地 joblib+json 模型版本管理）、`should_promote_challenger`（Champion/Challenger 比較後才換模型）、`population_stability_index` / `ks_test_drift`（特徵飄移偵測） |
-| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD。`PortfolioAgent`（資產類別曝險上限，可否決）**已實作、有單元測試，但 `daily_run.py` 目前組裝 `DecisionEngine` 時沒有把它加進去**，因為它需要「目前投資組合各資產類別權重」這種這套系統目前沒有持久追蹤的資訊，貿然接入容易做出不可靠、依標的分析順序而變的否決 |
+| **多代理決策系統** `src/agents/` | `TechnicalAgent`（包裝策略投票+市場狀態）、`MacroAgent`（總經+情緒面，低信心度慢速訊號）、`RiskAgent`（風險限額，可直接否決）→ `DecisionEngine` 加權彙整，任何 Agent 否決就直接變 HOLD。`PortfolioAgent`（資產類別曝險上限，可否決）**已實作、有單元測試，但 `daily_run.py` 目前組裝 `DecisionEngine` 時沒有把它加進去**，因為它需要「目前投資組合各資產類別權重」這種這套系統目前沒有持久追蹤的資訊，貿然接入容易做出不可靠、依標的分析順序而變的否決。**2026-07 修正**：`MacroAgent` 的加密貨幣恐懼貪婪指數逆向操作訊號（極度恐懼→偏多／極度貪婪→偏空）曾經套用到「每一檔」標的，包括台股、黃金、原油、外匯——但比特幣的市場情緒跟這些標的完全無關，而且它的信心度（0.25）常常大到足以把技術面訊號打平甚至反轉，變成「用加密貨幣的情緒去干擾台積電的訊號」。已改成只在標的本身就是加密貨幣時才套用這個邏輯 |
 
 擴充後的績效指標（`src/backtest/metrics.py`）：CAGR、Sharpe、Sortino、Calmar、**MAR、Omega、SQN、Alpha/Beta、Information Ratio、Expectancy、Recovery Factor、Rolling Sharpe/Drawdown**。
 
