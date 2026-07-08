@@ -73,6 +73,24 @@ function refreshNotifyButton() {
   btn.textContent = notificationsEnabled() ? "🔔 強訊號通知：已開啟" : "🔔 開啟強訊號通知";
 }
 
+// The overall Taiwan market's daily change (加權股價指數/大盤) -- per user
+// request ("我是指大盤總共"), a single "is the whole market up or down
+// today" figure distinct from any individual stock pick.
+function renderTaiex(taiex) {
+  const el = document.getElementById("taiex-pill");
+  if (!el) return;
+  if (!taiex || taiex.change_pct == null) {
+    el.textContent = "大盤：--";
+    el.className = "pill";
+    return;
+  }
+  const isUp = taiex.change_pct >= 0;
+  const sign = isUp ? "+" : "";
+  const closedNote = taiex.market_open === false ? "（收盤）" : "";
+  el.textContent = `大盤 加權指數 ${fmtNum(taiex.price, 0)} ${sign}${fmtNum(taiex.change_pts, 0)}（${sign}${fmtNum(taiex.change_pct, 2)}%）${closedNote}`;
+  el.className = `pill ${isUp ? "live-up" : "live-down"}`;
+}
+
 function renderSummary(payload) {
   const counts = { BUY: 0, SELL: 0, HOLD: 0 };
   payload.signals.forEach((s) => counts[effectiveAction(s)]++);
@@ -310,6 +328,7 @@ async function loadDashboard() {
 
     document.getElementById("generated-at").textContent =
       "最後更新: " + new Date(payload.generated_at).toLocaleString();
+    renderTaiex(payload.taiex);
     renderFearGreed("fear-greed", payload.market_sentiment?.crypto_fear_greed);
 
     if (typeof paperCacheLatestPrices === "function") paperCacheLatestPrices(payload);
