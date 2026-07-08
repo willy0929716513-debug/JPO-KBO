@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>即時價格總覽｜量化訊號小幫手</title>
+<title>最強推薦｜量化訊號小幫手</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="favicon.ico" sizes="any" />
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
@@ -19,13 +19,13 @@
   <div id="app-splash" class="app-splash">
     <svg class="app-splash-logo" width="84" height="84" viewBox="0 0 40 40" aria-hidden="true">
       <defs>
-        <linearGradient id="logoGrad-prc-splash" x1="0" y1="1" x2="1" y2="0">
+        <linearGradient id="logoGrad-hot-splash" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stop-color="#22c55e" />
           <stop offset="100%" stop-color="#5b8cff" />
         </linearGradient>
       </defs>
-      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-prc-splash)" opacity="0.16" />
-      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-prc-splash)" stroke-width="1.6" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-hot-splash)" opacity="0.16" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-hot-splash)" stroke-width="1.6" />
       <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
       <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
       <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
@@ -38,67 +38,47 @@
       <h1>
         <svg class="brand-logo" width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
           <defs>
-            <linearGradient id="logoGrad-prc-header" x1="0" y1="1" x2="1" y2="0">
+            <linearGradient id="logoGrad-hot-header" x1="0" y1="1" x2="1" y2="0">
               <stop offset="0%" stop-color="#22c55e" />
               <stop offset="100%" stop-color="#5b8cff" />
             </linearGradient>
           </defs>
-          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-prc-header)" opacity="0.16" />
-          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-prc-header)" stroke-width="1.6" />
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-hot-header)" opacity="0.16" />
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-hot-header)" stroke-width="1.6" />
           <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
           <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
           <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
         </svg>
-        💹 即時價格總覽</h1>
-      <p class="subtitle">依股票 / 期貨商品 / 外匯 / 加密貨幣分類，一次看完所有你關心的標的價格</p>
+        🚀 最強推薦</h1>
+      <p class="subtitle">全市場依信心度排名，信心度最高的一檔打上 🚀，其餘依信心度分成 ⭐⭐⭐／⭐⭐／⭐ 三級</p>
       <div class="meta-row">
         <span id="generated-at" class="pill">載入中...</span>
-        <span id="fear-greed" class="pill">市場情緒：--</span>
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
         <a href="index.html" class="pill">← 回今日建議</a>
+        <a href="prices.html" class="pill">💹 即時價格總覽 →</a>
         <a href="paper.html" class="pill">🧪 模擬交易 →</a>
         <a href="auto-trade.html" class="pill">🤖 24小時自動跟單 →</a>
-        <a href="top-picks.html" class="pill">🚀 最強推薦 →</a>
       </div>
     </div>
   </header>
 
   <main class="container">
     <section class="disclaimer">
-      ⚠️ 只有加密貨幣是真正逐筆即時報價；股票/期貨/外匯免費資料源沒有即時逐筆報價，改為開盤時段每 5 分鐘更新一次，收盤時段會顯示「已收盤」並沿用最後一筆資料。
+      ⚠️ 這是自動化程式產生的參考訊號，<b>目前只是模擬、不會幫你真的下單買賣</b>。排名只反映系統目前算出來的信心度高低，
+      不是穩賺保證，任何建議都可能出錯，投資一定有虧錢的風險，實際買賣請自己再判斷一次。
     </section>
 
-    <section class="panel live-panel">
-      <h2>🪙 加密貨幣（真正即時）<span id="live-status" class="pulse-dot" style="display:none" title="即時連線中"></span></h2>
-      <div id="live-crypto" class="live-price-row"></div>
-    </section>
-
-    <section class="panel">
-      <h2>🇹🇼 台股（主要）<span id="live-status-tw" class="pulse-dot" style="display:none" title="TWSE 即時報價中"></span></h2>
-      <div id="group-taiwan" class="price-grid">
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-      </div>
+    <section class="panel" id="hero-panel" style="display:none">
+      <h2>🚀 本日最強推薦</h2>
+      <div id="hero-pick" class="pick-grid"></div>
     </section>
 
     <section class="panel">
-      <h2>📈 美股 / ETF（輔助）</h2>
-      <div id="group-stocks" class="price-grid">
+      <h2>⭐ 其他高信心度推薦</h2>
+      <p class="footnote">依信心度排名，只列出建議做多/做空的標的（觀望不列入）</p>
+      <div id="hot-picks-grid" class="skeleton-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>🛢️ 期貨 / 商品</h2>
-      <div id="group-futures" class="price-grid">
-        <div class="skeleton-card"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>💱 外匯</h2>
-      <div id="group-forex" class="price-grid">
         <div class="skeleton-card"></div>
       </div>
     </section>
@@ -109,6 +89,7 @@
   </footer>
 
   <script src="assets/common.js"></script>
-  <script src="assets/prices.js"></script>
+  <script src="assets/paper.js"></script>
+  <script src="assets/top-picks-page.js"></script>
 </body>
 </html>
