@@ -23,11 +23,30 @@ def test_macro_agent_neutral_without_data(synthetic_ohlcv):
 
 
 def test_macro_agent_contrarian_lean_on_extreme_fear(synthetic_ohlcv):
+    """Crypto Fear & Greed only applies its contrarian lean to crypto
+    symbols -- confirmed via asset_class_of, not just "any symbol"."""
     features = FeaturePipeline().build(synthetic_ohlcv)
-    context = AgentContext(symbol="TEST", features=features,
-                            sentiment_snapshot={"crypto_fear_greed": {"value": 10}})
+    context = AgentContext(symbol="BTC/USDT", features=features,
+                            sentiment_snapshot={"crypto_fear_greed": {"value": 10}},
+                            asset_class_of={"BTC/USDT": "crypto"})
     opinion = MacroAgent().analyze(context)
     assert opinion.lean > 0
+
+
+def test_macro_agent_ignores_crypto_sentiment_for_non_crypto_symbols(synthetic_ohlcv):
+    """Regression test for a real production bug: crypto Fear & Greed was
+    being applied as a contrarian lean to every symbol regardless of asset
+    class -- e.g. gold futures, Taiwan equities, forex -- which had nothing
+    to do with crypto crowd sentiment, and its ~0.25 confidence was large
+    enough to significantly distort or cancel out those symbols' actual
+    technical signal in the combined decision score."""
+    features = FeaturePipeline().build(synthetic_ohlcv)
+    context = AgentContext(symbol="GC=F", features=features,
+                            sentiment_snapshot={"crypto_fear_greed": {"value": 10}},
+                            asset_class_of={"GC=F": "metal"})
+    opinion = MacroAgent().analyze(context)
+    assert opinion.lean == 0.0
+    assert opinion.confidence == 0.0
 
 
 def test_risk_agent_vetoes_on_drawdown_breach(synthetic_ohlcv):
