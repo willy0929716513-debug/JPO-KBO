@@ -90,7 +90,7 @@ function renderServerAutoTrader(state) {
   if (canvas && typeof Chart !== "undefined" && history.length >= 2) {
     if (serverAutoEquityChart) serverAutoEquityChart.destroy();
     const isUp = history[history.length - 1].equity >= state.starting_cash;
-    const lineColor = isUp ? "#22c55e" : "#f43f5e";
+    const lineColor = isUp ? "#f43f5e" : "#22c55e";
     serverAutoEquityChart = new Chart(canvas, {
       type: "line",
       data: {

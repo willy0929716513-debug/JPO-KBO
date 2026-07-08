@@ -591,7 +591,7 @@ function paperRenderEquityChart(state) {
 
   if (paperEquityChart) paperEquityChart.destroy();
   const isUp = history[history.length - 1].equity >= PAPER_STARTING_CASH;
-  const lineColor = isUp ? "#22c55e" : "#f43f5e";
+  const lineColor = isUp ? "#f43f5e" : "#22c55e";
   paperEquityChart = new Chart(canvas, {
     type: "line",
     data: {
