@@ -113,26 +113,31 @@ async function loadNewsPicksPage() {
       heatGrid.innerHTML = heat.map(newsHeatCardHtml).join("");
     }
 
-    const ranked = withNews
-      .filter((s) => s.news_sentiment.score > 0)
-      .slice()
-      .sort((a, b) =>
-        b.news_sentiment.score - a.news_sentiment.score ||
-        b.news_sentiment.bullish_count - a.news_sentiment.bullish_count ||
-        effectiveConfidence(b) - effectiveConfidence(a)
-      );
+    const bullishSort = (a, b) =>
+      b.news_sentiment.score - a.news_sentiment.score ||
+      b.news_sentiment.bullish_count - a.news_sentiment.bullish_count ||
+      effectiveConfidence(b) - effectiveConfidence(a);
 
-    const gridEl = document.getElementById("news-picks-grid");
-    if (ranked.length === 0) {
-      gridEl.className = "";
-      gridEl.innerHTML = `<p class="footnote">目前掃描到的新聞裡，沒有標的的內容淨偏多，等下一次資料更新再看看。</p>`;
-      return;
-    }
+    const bullish = withNews.filter((s) => s.news_sentiment.score > 0);
+    // 台股為主力焦點 -- 分開兩區塊呈現，台股永遠排在最前面，不會被新聞措辭
+    // 比較聳動的美股標題稀釋掉。
+    const rankedTw = bullish.filter((s) => s.asset_class === "taiwan").sort(bullishSort);
+    const rankedOther = bullish.filter((s) => s.asset_class !== "taiwan").sort(bullishSort);
 
-    gridEl.className = "pick-grid";
-    gridEl.innerHTML = ranked.map((s, i) => newsPickCardHtml(s, i)).join("");
+    const renderGrid = (elId, ranked, emptyMsg) => {
+      const gridEl = document.getElementById(elId);
+      if (ranked.length === 0) {
+        gridEl.className = "";
+        gridEl.innerHTML = `<p class="footnote">${emptyMsg}</p>`;
+        return;
+      }
+      gridEl.className = "pick-grid";
+      gridEl.innerHTML = ranked.map((s, i) => newsPickCardHtml(s, i)).join("");
+      if (typeof renderTradeButtons === "function") renderTradeButtons(gridEl);
+    };
 
-    if (typeof renderTradeButtons === "function") renderTradeButtons(gridEl);
+    renderGrid("news-picks-grid-tw", rankedTw, "目前掃描到的台股新聞裡，沒有標的內容淨偏多，等下一次資料更新再看看。");
+    renderGrid("news-picks-grid-other", rankedOther, "目前掃描到的其他市場新聞裡，沒有標的內容淨偏多。");
   } catch (err) {
     document.getElementById("generated-at").textContent = "尚未有資料，等待第一次自動更新";
     console.error(err);
