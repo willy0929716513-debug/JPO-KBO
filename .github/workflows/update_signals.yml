@@ -25,10 +25,22 @@ name: Update Trading Signals
 # is NOT every 5 minutes, since two independent chains overlapping for a
 # while just wastes a little Actions time (free/unlimited on this public
 # repo), not correctness -- concurrency below still serializes them.
+#
+# `push` is a second, faster self-healing trigger for the same broken-chain
+# scenario: observed in production on 2026-07-09 -- a successor run got
+# cancelled by GitHub before it reached its own "queue next" step, leaving
+# the chain dead for hours until the 6-hourly cron eventually caught it.
+# Any push to main resumes the chain immediately instead of waiting for
+# that window. This does NOT cause runs to pile up: the pipeline's own
+# `[skip ci]` commits are automatically skipped by GitHub for push-triggered
+# workflows, and `concurrency` below still allows at most one run active
+# plus one queued at a time either way.
 on:
   schedule:
     - cron: "13 */6 * * *"  # safety net only, see comment above
   workflow_dispatch: {}
+  push:
+    branches: [main]
 
 permissions:
   contents: write
