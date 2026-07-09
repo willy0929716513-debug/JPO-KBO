@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>即時價格總覽｜量化訊號小幫手</title>
+<title>新聞熱門股｜量化訊號小幫手</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="favicon.ico" sizes="any" />
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
@@ -19,13 +19,13 @@
   <div id="app-splash" class="app-splash">
     <svg class="app-splash-logo" width="84" height="84" viewBox="0 0 40 40" aria-hidden="true">
       <defs>
-        <linearGradient id="logoGrad-prc-splash" x1="0" y1="1" x2="1" y2="0">
+        <linearGradient id="logoGrad-news-splash" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stop-color="#22c55e" />
           <stop offset="100%" stop-color="#5b8cff" />
         </linearGradient>
       </defs>
-      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-prc-splash)" opacity="0.16" />
-      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-prc-splash)" stroke-width="1.6" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-news-splash)" opacity="0.16" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-news-splash)" stroke-width="1.6" />
       <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
       <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
       <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
@@ -38,68 +38,51 @@
       <h1>
         <svg class="brand-logo" width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
           <defs>
-            <linearGradient id="logoGrad-prc-header" x1="0" y1="1" x2="1" y2="0">
+            <linearGradient id="logoGrad-news-header" x1="0" y1="1" x2="1" y2="0">
               <stop offset="0%" stop-color="#22c55e" />
               <stop offset="100%" stop-color="#5b8cff" />
             </linearGradient>
           </defs>
-          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-prc-header)" opacity="0.16" />
-          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-prc-header)" stroke-width="1.6" />
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="url(#logoGrad-news-header)" opacity="0.16" />
+          <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#logoGrad-news-header)" stroke-width="1.6" />
           <rect x="9" y="21" width="5" height="12" rx="1.6" fill="#5b8cff" />
           <rect x="17.5" y="13" width="5" height="20" rx="1.6" fill="#8bd8ff" />
           <rect x="26" y="7" width="5" height="26" rx="1.6" fill="#22c55e" />
         </svg>
-        💹 即時價格總覽</h1>
-      <p class="subtitle">依股票 / 期貨商品 / 外匯 / 加密貨幣分類，一次看完所有你關心的標的價格</p>
+        📰 新聞熱門股</h1>
+      <p class="subtitle">掃描每檔標的最新新聞標題，找出「內容偏正面」的候選標的，並附上原始新聞連結讓你自己判讀</p>
       <div class="meta-row">
         <span id="generated-at" class="pill">載入中...</span>
-        <span id="fear-greed" class="pill">市場情緒：--</span>
         <button id="refresh-btn" class="pill pill-btn">重新整理</button>
         <a href="index.html" class="pill">← 回今日建議</a>
+        <a href="prices.html" class="pill">💹 即時價格總覽 →</a>
         <a href="paper.html" class="pill">🧪 模擬交易 →</a>
         <a href="auto-trade.html" class="pill">🤖 24小時自動跟單 →</a>
         <a href="top-picks.html" class="pill">🚀 最強推薦 →</a>
-        <a href="news-picks.html" class="pill">📰 新聞熱門股 →</a>
       </div>
     </div>
   </header>
 
   <main class="container">
     <section class="disclaimer">
-      ⚠️ 只有加密貨幣是真正逐筆即時報價；股票/期貨/外匯免費資料源沒有即時逐筆報價，改為開盤時段每 5 分鐘更新一次，收盤時段會顯示「已收盤」並沿用最後一筆資料。
+      ⚠️ 這個頁面是用<b>關鍵字比對</b>掃描每檔標的最近的新聞標題（例如出現 "surge"／"jump"／"downgrade"／"lawsuit" 這類字眼），
+      不是 AI 語意分析，也<b>不是預測未來會不會大漲的保證</b>——只是把「哪些標的最近新聞內容偏正面」整理出來，
+      並且附上原始新聞連結，方便你自己點進去判斷。這個頁面的統計<b>完全不會影響</b>其他頁面的做多/做空建議或自動跟單，
+      純粹是額外的參考資訊。任何投資都有虧錢風險，請自己再三判斷。
     </section>
 
-    <section class="panel live-panel">
-      <h2>🪙 加密貨幣（真正即時）<span id="live-status" class="pulse-dot" style="display:none" title="即時連線中"></span></h2>
-      <div id="live-crypto" class="live-price-row"></div>
-    </section>
-
-    <section class="panel">
-      <h2>🇹🇼 台股（主要）<span id="live-status-tw" class="pulse-dot" style="display:none" title="TWSE 即時報價中"></span></h2>
-      <div id="group-taiwan" class="price-grid">
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-      </div>
+    <section class="panel" id="heat-panel" style="display:none">
+      <h2>🔥 產業熱度</h2>
+      <p class="footnote">同一族群（例如台股金控股、同一資產類別）裡，如果有兩檔以上標的新聞內容都偏正面，會列在這裡</p>
+      <div id="news-heat-grid" class="news-heat-grid"></div>
     </section>
 
     <section class="panel">
-      <h2>📈 美股 / ETF（輔助）</h2>
-      <div id="group-stocks" class="price-grid">
+      <h2>📈 新聞偏多候選標的</h2>
+      <p class="footnote">依「新聞偏多比例」排名，只列出目前有抓到新聞、而且內容淨偏多的標的</p>
+      <div id="news-picks-grid" class="skeleton-grid">
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>🛢️ 期貨 / 商品</h2>
-      <div id="group-futures" class="price-grid">
-        <div class="skeleton-card"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>💱 外匯</h2>
-      <div id="group-forex" class="price-grid">
         <div class="skeleton-card"></div>
       </div>
     </section>
@@ -110,6 +93,7 @@
   </footer>
 
   <script src="assets/common.js"></script>
-  <script src="assets/prices.js"></script>
+  <script src="assets/paper.js"></script>
+  <script src="assets/news-picks-page.js"></script>
 </body>
 </html>

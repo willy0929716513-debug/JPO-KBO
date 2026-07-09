@@ -123,6 +123,24 @@ function renderNewsList(news) {
   return `<ul class="pick-news">${items}</ul>`;
 }
 
+// Same as renderNewsList, but shows each headline's keyword-tagged tone
+// (bullish/bearish/neutral, from src/data/news_scoring.py's
+// score_news_batch -- see "news_sentiment"/"news[].tone" in
+// signals_latest.json) as a colored badge next to the link, for the "📰
+// 新聞熱門股" page.
+const NEWS_TONE_ZH = { bullish: "偏多", bearish: "偏空", neutral: "中性" };
+function renderNewsListTagged(news) {
+  if (!news || news.length === 0) return "";
+  const items = news.map((n) => {
+    const publisher = n.publisher ? `${escapeHtml(n.publisher)} · ` : "";
+    const tone = n.tone || "neutral";
+    const toneBadge = `<span class="news-tone-badge news-tone-${tone}">${NEWS_TONE_ZH[tone]}</span>`;
+    return `<li>${toneBadge} <a href="${escapeHtml(n.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(n.title)}</a>
+      <span class="footnote">${publisher}${formatNewsDate(n.published_at)}</span></li>`;
+  }).join("");
+  return `<ul class="pick-news">${items}</ul>`;
+}
+
 function confidenceLabel(c) {
   if (c >= 0.6) return "高";
   if (c >= 0.3) return "中";
