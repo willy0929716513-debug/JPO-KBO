@@ -9,14 +9,15 @@
 // it's cache-first. Cross-origin requests (Chart.js CDN, Binance WebSocket,
 // TWSE quotes) are left alone entirely -- this worker only ever touches
 // same-origin requests.
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const APP_CACHE = `app-cache-${CACHE_VERSION}`;
 
 const SHELL_URLS = [
   "./index.html", "./prices.html", "./paper.html", "./auto-trade.html", "./top-picks.html",
+  "./news-picks.html",
   "./assets/common.js", "./assets/app.js", "./assets/prices.js",
   "./assets/paper.js", "./assets/paper-page.js", "./assets/auto-trade-page.js",
-  "./assets/top-picks-page.js", "./assets/style.css",
+  "./assets/top-picks-page.js", "./assets/news-picks-page.js", "./assets/style.css",
   "./manifest.json",
   "./icons/favicon-16.png", "./icons/favicon-32.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",

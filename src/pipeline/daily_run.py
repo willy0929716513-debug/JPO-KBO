@@ -24,6 +24,7 @@ from src.agents import AgentContext, DecisionEngine, MacroAgent, RiskAgent, Tech
 from src.backtest.engine import BacktestEngine
 from src.config import DOCS_DATA_DIR, settings
 from src.data.market_hours import is_market_open
+from src.data.news_scoring import score_news_batch
 from src.data.providers.ccxt_provider import CCXTProvider
 from src.data.providers.macro_provider import MacroProvider
 from src.data.providers.sentiment_provider import SentimentProvider
@@ -132,6 +133,18 @@ def _load_news(symbol: str, asset_class: str) -> list[dict]:
     if asset_class == "crypto":
         return []
     return YFinanceProvider().get_news(symbol)
+
+
+def _load_news_with_sentiment(symbol: str, asset_class: str) -> tuple[list[dict], dict]:
+    """Fetches this symbol's news and tags each headline bullish/bearish/
+    neutral via the keyword heuristic in news_scoring -- feeds the "📰 新聞
+    熱門股" page's per-symbol news score. Deliberately NOT wired into
+    decision_engine/DecisionEngine: this is a separate, exploratory signal
+    the user asked to see displayed with its supporting article links, not a
+    change to how BUY/SELL/auto-trade decisions are made."""
+    news = _load_news(symbol, asset_class)
+    sentiment = score_news_batch(news)
+    return news, sentiment
 
 
 TAIEX_SYMBOL = "^TWII"  # Yahoo Finance ticker for the Taiwan Weighted Index (加權股價指數)
@@ -268,6 +281,8 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
     prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 and not pd.isna(df["close"].iloc[-2]) else None
     change_pct = round((float(df["close"].iloc[-1]) - prev_close) / prev_close * 100, 2) if prev_close else None
 
+    news, news_sentiment = _load_news_with_sentiment(symbol, asset_class)
+
     return {
         "symbol": symbol,
         "asset_class": asset_class,
@@ -286,7 +301,8 @@ def _analyze_symbol(symbol: str, asset_class: str, df: pd.DataFrame, macro_snaps
         "backtest": backtest_snapshot,
         "feature_count": FeaturePipeline.feature_count(features),
         "indicators": _extract_indicators(features),
-        "news": _load_news(symbol, asset_class),
+        "news": news,
+        "news_sentiment": news_sentiment,
     }
 
 
