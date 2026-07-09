@@ -18,6 +18,17 @@ const PAPER_AUTO_TRADE_NOTIONAL = PAPER_STARTING_CASH * 0.1; // per-symbol cap p
 // for the same constant and full reasoning) rather than picked round; the
 // combined multi-agent confidence rarely exceeds ~0.3 for actionable signals.
 const PAPER_AUTO_TRADE_MIN_CONFIDENCE = 0.20;
+// Per user report: a single auto-trade tick opened 6 of ~10 new positions in
+// Taiwan financial-holding stocks (2881/2884/2885/2887/2890/2891 -- TWSE's
+// 2880-2892 block, which moves together as one correlated group), so a
+// broad dip in that one sector produced a large loss across "10 different"
+// positions that behaved like one oversized bet. Cap how much of a single
+// tick's confidence-weighted budget can go to one correlated group; once a
+// group hits the cap, later same-group candidates sit out that tick (they
+// can still open in a later tick if the signal persists). The first
+// candidate in any group is always allowed in, even alone over the cap, so
+// a single strong signal is never blocked just because its group is small.
+const PAPER_AUTO_TRADE_MAX_GROUP_SHARE = 0.34;
 
 let PAPER_LATEST_PRICES = {};
 let PAPER_LATEST_STOPS = {}; // { [symbol]: { stopLoss, takeProfit } } from the dashboard's own recommended levels
@@ -392,6 +403,23 @@ function dominantStrategyProfitFactor(s, action) {
   return metrics ? metrics.profit_factor : null;
 }
 
+// Groups a symbol for the per-tick concentration cap above. Taiwan-listed
+// codes are loosely industry-clustered by their leading digits on the TWSE
+// (e.g. 2880-2892 are all financial holding companies), so that block is
+// treated as one correlated group; everything else falls back to its
+// asset_class (equity/etf/metal/energy/forex/crypto), which is still a
+// reasonable diversification proxy since assets in the same class tend to
+// move together more than assets across classes.
+function autoTradeGroupOf(symbol, assetClass) {
+  if (assetClass === "taiwan") {
+    const digits = String(symbol).match(/^\d+/);
+    const prefix = digits ? digits[0].slice(0, 2) : "";
+    if (prefix === "28") return "tw_financial_holding";
+    return prefix ? `tw_${prefix}` : "taiwan";
+  }
+  return assetClass || "other";
+}
+
 // Follows the dashboard's own recommendations: opens a virtual long/short
 // when a symbol newly signals BUY/SELL, and closes it once that symbol's
 // signal flips or drops back to HOLD. Only touches positions this
@@ -442,10 +470,20 @@ function paperAutoTradeTick(payload) {
     // confidence.
     const totalConfidence = candidates.reduce((sum, s) => sum + effectiveConfidence(s), 0);
     const availableCash = state.cash;
-    candidates.forEach((s) => {
+    // Process strongest signals first so, when a group hits its
+    // concentration cap, it's the weaker same-group candidates that sit
+    // out this tick rather than an arbitrary one.
+    const orderedCandidates = candidates.slice().sort((a, b) => effectiveConfidence(b) - effectiveConfidence(a));
+    const groupConfidenceSoFar = {};
+    const groupCap = totalConfidence * PAPER_AUTO_TRADE_MAX_GROUP_SHARE;
+    orderedCandidates.forEach((s) => {
       const price = s.last_price;
       const action = effectiveAction(s);
       const confidence = effectiveConfidence(s);
+      const group = autoTradeGroupOf(s.symbol, s.asset_class);
+      const soFarInGroup = groupConfidenceSoFar[group] || 0;
+      if (soFarInGroup >= groupCap) return;
+      groupConfidenceSoFar[group] = soFarInGroup + confidence;
       const share = totalConfidence > 0 ? confidence / totalConfidence : 1 / candidates.length;
       const priceTwd = toTwd(price, s.asset_class);
       const budget = Math.min(availableCash * share, PAPER_AUTO_TRADE_NOTIONAL);
