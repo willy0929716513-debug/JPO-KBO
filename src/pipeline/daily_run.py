@@ -401,7 +401,18 @@ def run_daily_pipeline() -> dict:
             if not market_open:
                 carried = previous_by_symbol.get(symbol)
                 if carried:
-                    results.append({**carried, "market_open": False})
+                    # Price/technicals are correctly frozen while this
+                    # symbol's market is closed (no new candle to analyze),
+                    # but news keeps getting published around the clock --
+                    # freezing news_sentiment along with the price meant
+                    # Taiwan stocks (market open only ~4.5h/weekday) almost
+                    # never refreshed their news score, making them nearly
+                    # invisible on the "📰 新聞熱門股" page despite being
+                    # this project's primary focus. Refresh news/sentiment
+                    # on every tick regardless of market hours; everything
+                    # else about the carried entry stays untouched.
+                    news, news_sentiment = _load_news_with_sentiment(symbol, asset_class)
+                    results.append({**carried, "market_open": False, "news": news, "news_sentiment": news_sentiment})
                     continue
                 # No prior data yet (e.g. a symbol just added to the
                 # watchlist) -- fall through and analyze once anyway so the

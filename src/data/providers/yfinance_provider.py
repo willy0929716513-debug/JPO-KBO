@@ -38,8 +38,15 @@ class YFinanceProvider:
     # TTL made 2-3 consecutive 5-minute loop iterations reuse the exact
     # same cached price, showing up on the dashboard as a stuck "0%"
     # change even while the market was clearly moving.
-    def __init__(self, use_cache: bool = True, cache_ttl_seconds: int = 200):
+    def __init__(self, use_cache: bool = True, cache_ttl_seconds: int = 200, news_cache_ttl_seconds: int = 900):
         self.cache = ParquetCache(ttl_seconds=cache_ttl_seconds) if use_cache else None
+        # News needs its own, much longer-lived cache: headlines don't
+        # change nearly as fast as price, and (unlike OHLCV) get_news() is
+        # now called for every symbol on every ~5-minute pipeline tick
+        # regardless of whether that symbol's market is currently open (see
+        # daily_run.py) -- reusing the 200s price cache here would expire
+        # before the next tick even runs (300s > 200s), defeating the point.
+        self.news_cache = ParquetCache(ttl_seconds=news_cache_ttl_seconds) if use_cache else None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8))
     def _download(self, symbol: str, interval: str) -> pd.DataFrame:
@@ -100,6 +107,11 @@ class YFinanceProvider:
         mismatch just means an empty news list for that symbol -- it can
         never break signal generation.
         """
+        cache_key = f"yf_news_{symbol}"
+        if self.news_cache is not None:
+            cached = self.news_cache.get(cache_key)
+            if cached is not None:
+                return cached.to_dict("records")
         try:
             import yfinance as yf
 
@@ -107,7 +119,10 @@ class YFinanceProvider:
         except Exception as exc:
             logger.warning("News fetch failed for %s: %s", symbol, exc)
             return []
-        return _extract_news_items(raw, limit)
+        items = _extract_news_items(raw, limit)
+        if self.news_cache is not None and items:
+            self.news_cache.set(cache_key, pd.DataFrame(items))
+        return items
 
 
 def _extract_news_items(raw_articles: list, limit: int = 3) -> list[dict]:

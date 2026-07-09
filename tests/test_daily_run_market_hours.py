@@ -45,6 +45,21 @@ def _stub_external_dependencies(tmp_path, monkeypatch):
     monkeypatch.setattr(daily_run, "SentimentProvider", _StubSentiment)
     monkeypatch.setattr(daily_run, "MacroProvider", _StubMacro)
 
+    # Deterministic, offline stand-in for news -- every call returns a
+    # fresh (incrementing) headline so tests can tell whether a symbol's
+    # news actually got refreshed on a given run, without ever hitting the
+    # real yfinance news endpoint (this repo's sandbox has no network
+    # access, and even where it does, tests shouldn't depend on live data).
+    news_call_count = {"n": 0}
+
+    def _fake_load_news_with_sentiment(symbol, asset_class):
+        news_call_count["n"] += 1
+        news = [{"title": f"headline {news_call_count['n']}", "link": "https://example.com",
+                 "publisher": "Test Wire", "published_at": None}]
+        return news, {"score": 0.0, "bullish_count": 0, "bearish_count": 0}
+
+    monkeypatch.setattr(daily_run, "_load_news_with_sentiment", _fake_load_news_with_sentiment)
+
     # "equity" market open, "taiwan" market closed, for this test only.
     monkeypatch.setattr(daily_run, "is_market_open", lambda asset_class: asset_class == "equity")
     return tmp_path
@@ -82,3 +97,23 @@ def test_second_run_carries_forward_closed_market_symbol(tmp_path):
     # (same price/signal), just re-tagged as not freshly analyzed.
     assert second_by_symbol["CLOSED_SYM"]["last_price"] == first_closed_entry["last_price"]
     assert second_by_symbol["CLOSED_SYM"]["as_of"] == first_closed_entry["as_of"]
+
+
+def test_closed_market_symbol_still_refreshes_its_news_every_run():
+    """Regression test: news/news_sentiment must NOT be frozen along with
+    price/technicals for a closed-market symbol. Headlines get published
+    around the clock regardless of trading hours -- freezing them here made
+    Taiwan stocks (market open only ~4.5h/weekday) almost never refresh
+    their news score, making them nearly invisible on the "📰 新聞熱門股"
+    page despite being this project's primary focus (real user report)."""
+    first = daily_run.run_daily_pipeline()
+    first_closed_entry = next(s for s in first["signals"] if s["symbol"] == "CLOSED_SYM")
+
+    second = daily_run.run_daily_pipeline()
+    second_closed_entry = next(s for s in second["signals"] if s["symbol"] == "CLOSED_SYM")
+
+    assert second_closed_entry["market_open"] is False
+    # Price/as_of are frozen (verified above), but the news headline (from
+    # the incrementing fake stub) must differ between runs.
+    assert second_closed_entry["news"][0]["title"] != first_closed_entry["news"][0]["title"]
+    assert "news_sentiment" in second_closed_entry
