@@ -3,21 +3,36 @@ symbols whose market is actually open right now instead of blindly
 re-running everything on a fixed UTC window (which, e.g., completely missed
 Taiwan's trading session in the original schedule).
 
-Deliberately self-contained (uses only the stdlib `zoneinfo`, no extra
-dependency like `pandas_market_calendars`) -- it approximates each market's
-*regular weekly* trading hours correctly, including daylight-saving shifts
-for US markets, but does NOT account for public holidays. A holiday will be
-treated as a normal trading day and the symbol will simply be re-analyzed
-against unchanged data, which is harmless (just a wasted, but cheap, no-op
-run) rather than something that produces wrong output.
+Mostly self-contained (uses only the stdlib `zoneinfo`, no extra dependency
+like `pandas_market_calendars`) -- it approximates each market's *regular
+weekly* trading hours correctly, including daylight-saving shifts for US
+markets, but a fixed weekday+clock rule can never know about a public
+holiday, let alone an ad-hoc same-day closure (e.g. Taiwan's "颱風假"
+typhoon days -- announced the morning of based on weather, impossible to
+encode in any static calendar in advance; real user report on 2026-07-10:
+TWSE was closed for Typhoon Bawi on an ordinary weekday, and this module
+still said "open"). For Taiwan specifically, an additional best-effort live
+check (TaiwanHolidayProvider) narrows a weekday-hours "open" verdict down
+to "closed" if TWSE's own published schedule confirms today is a closure --
+see that module's docstring for why it's built to fail safely closed-to-the-
+existing-behavior (i.e. never invents a false closure) rather than assert
+a guessed API shape confidently. For every other asset class, an
+undetected holiday just means the symbol gets harmlessly re-analyzed
+against unchanged data (a wasted but cheap no-op run), same as before.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+from src.data.providers.taiwan_holiday_provider import TaiwanHolidayProvider
+
+logger = logging.getLogger(__name__)
+
 _US_EASTERN = ZoneInfo("America/New_York")
 _TAIPEI = ZoneInfo("Asia/Taipei")
+_taiwan_holiday_provider = TaiwanHolidayProvider()
 
 # Asset classes that are effectively open around the clock on weekdays (forex
 # and CME/COMEX-style futures both run roughly Sun 5pm ET -> Fri 5pm ET with
@@ -43,7 +58,12 @@ def _is_taiwan_equity_hours(now_utc: datetime) -> bool:
     if local.weekday() >= 5:
         return False
     minutes = local.hour * 60 + local.minute
-    return 9 * 60 <= minutes < 13 * 60 + 30  # 09:00-13:30 Asia/Taipei
+    if not (9 * 60 <= minutes < 13 * 60 + 30):  # 09:00-13:30 Asia/Taipei
+        return False
+    if _taiwan_holiday_provider.is_closed_today(local.date()):
+        logger.info("TWSE ad-hoc closure detected for %s -- treating as market-closed", local.date())
+        return False
+    return True
 
 
 def _is_near_24h_open(now_utc: datetime) -> bool:
