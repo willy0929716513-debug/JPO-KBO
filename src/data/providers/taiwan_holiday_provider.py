@@ -1,42 +1,51 @@
-"""Best-effort detection of ad-hoc Taiwan Stock Exchange (TWSE) closures
-that market_hours.py's plain weekday+clock heuristic can't know about --
-most notably "颱風假" (typhoon days), where the Taipei city government
-declares a same-day work/school stoppage due to weather and TWSE follows
-suit, closing the whole market for the day. These are announced the
-morning of and are impossible to encode in any static holiday calendar in
-advance.
+"""Best-effort check for ad-hoc Taiwan Stock Exchange (TWSE) closures that
+market_hours.py's plain weekday+clock heuristic can't know about -- most
+notably "颱風假" (typhoon days), where the Taipei city government declares
+a same-day work/school stoppage due to weather and TWSE follows suit,
+closing the whole market for the day. These are announced the morning of
+and are impossible to encode in any static holiday calendar in advance.
 
-TWSE publishes its holiday/closure schedule at a public URL, updated same-
-day for ad-hoc closures. This repo's sandbox has no general internet
-access to verify that endpoint's exact live response shape before shipping
-(same caveat as YFinanceProvider.get_news's docstring, for a different
-provider) -- so rather than parsing a guessed JSON/HTML structure with
-confident field-name assumptions, this does a maximally permissive
-substring search over the raw response text: if today's date appears on
-the same line as a closure keyword ("休市"), treat today as closed.
+An earlier version of this scraped TWSE's own published holiday-schedule
+page directly, but that could never be verified from this repo's sandbox
+(no general internet access here -- even a plain `curl example.com` fails,
+and WebFetch got a 403 from twse.com.tw), and in production it silently
+never detected a real, confirmed closure (2026-07-10, Typhoon Bawi) --
+either the endpoint isn't reachable from the pipeline's runner either, or
+its actual response shape doesn't match what was guessed. Rather than keep
+guessing at an unverifiable third-party endpoint, this now reuses the one
+data source already proven to work end-to-end in this exact pipeline:
+yfinance intraday bars for the TAIEX index (^TWII). If the market is
+genuinely closed today (holiday or ad-hoc typhoon closure), there is
+*zero* intraday trading, so no 1-minute bar for today will ever appear --
+regardless of why it's closed. This sidesteps needing to know *why* the
+market is closed at all.
 
-Any failure at all (network error, timeout, unexpected/empty content) is
-swallowed and treated as "no known ad-hoc closure" -- this can only ever
-narrow an "open" verdict down to "closed" on a real, confirmed closure day;
-it can never invent a false closure that overrides genuine trading hours,
-and a broken/blocked endpoint just silently falls back to the pre-existing
-weekday+clock behavior.
+Still fails safe the same way as before: any error (network failure,
+empty data, unexpected shape) is treated as "no confirmed closure", so a
+data hiccup can only ever leave the existing weekday+clock behavior
+unchanged -- never invents a false closure on a real trading day.
 """
 from __future__ import annotations
 
 import logging
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
-_HOLIDAY_SCHEDULE_URL = "https://www.twse.com.tw/rwd/zh/holidaySchedule/holidaySchedule"
-_CLOSURE_KEYWORDS = ("休市", "停止交易")
+_TAIPEI = ZoneInfo("Asia/Taipei")
+_TAIEX_SYMBOL = "^TWII"
+# Give the market a few minutes after the 09:00 open before trusting an
+# absence of intraday bars as "closed" -- yfinance's intraday feed isn't
+# instantaneous, and checking too close to the opening bell on a genuinely
+# open day could otherwise look identical to a closed one.
+_GRACE_MINUTES_AFTER_OPEN = 15
 
 
 class TaiwanHolidayProvider:
-    """Caches its check per calendar date so this adds at most one network
-    call per day, not one per 5-minute pipeline tick."""
+    """Caches its check per calendar date so this adds at most one extra
+    intraday data fetch per day, not one per 5-minute pipeline tick."""
 
     def __init__(self, cache_ttl_seconds: int = 6 * 3600):
         self.cache_ttl_seconds = cache_ttl_seconds
@@ -46,6 +55,12 @@ class TaiwanHolidayProvider:
 
     def is_closed_today(self, today: date | None = None) -> bool:
         today = today or date.today()
+        now_taipei = datetime.now(_TAIPEI)
+        if now_taipei.date() == today:
+            opened_at = now_taipei.replace(hour=9, minute=0, second=0, microsecond=0)
+            if now_taipei < opened_at + timedelta(minutes=_GRACE_MINUTES_AFTER_OPEN):
+                return False  # too early to trust an empty intraday feed either way
+
         now = time.monotonic()
         stale = (now - self._last_fetch_monotonic) > self.cache_ttl_seconds
         if self._cached_for_date != today or stale:
@@ -56,24 +71,27 @@ class TaiwanHolidayProvider:
 
     def _check(self, today: date) -> bool:
         try:
-            import requests
+            from src.data.providers.yfinance_provider import YFinanceProvider
 
-            resp = requests.get(_HOLIDAY_SCHEDULE_URL, params={"response": "csv"}, timeout=5)
-            resp.raise_for_status()
-            text = resp.text
+            df = YFinanceProvider().get_ohlcv(_TAIEX_SYMBOL, "1m")
+            if df.empty:
+                logger.warning("No intraday TAIEX data at all -- assuming no confirmed closure today")
+                return False
+            last_bar_date = _to_taipei_date(df.index[-1])
         except Exception as exc:
-            logger.warning("TWSE holiday schedule fetch failed, assuming no ad-hoc closure today: %s", exc)
+            logger.warning("TAIEX intraday fetch failed, assuming no confirmed closure today: %s", exc)
             return False
-        return _text_marks_date_closed(text, today)
+        closed = last_bar_date < today
+        if closed:
+            logger.info("No intraday TAIEX bar for %s (last bar: %s) -- treating as market-closed", today, last_bar_date)
+        return closed
 
 
-def _text_marks_date_closed(text: str, today: date) -> bool:
-    date_markers = {
-        today.strftime("%Y/%m/%d"), today.strftime("%Y-%m-%d"), today.strftime("%Y%m%d"),
-        f"{today.year - 1911}/{today.month:02d}/{today.day:02d}",  # ROC (Minguo) calendar, e.g. "115/07/10"
-        f"{today.year - 1911}年{today.month}月{today.day}日",
-    }
-    for line in text.splitlines():
-        if any(marker in line for marker in date_markers) and any(kw in line for kw in _CLOSURE_KEYWORDS):
-            return True
-    return False
+def _to_taipei_date(ts) -> date:
+    """yfinance's intraday index is typically tz-aware in the exchange's
+    local timezone already; handle a naive timestamp defensively too
+    rather than assuming one or the other."""
+    py_dt = ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts
+    if py_dt.tzinfo is None:
+        return py_dt.date()
+    return py_dt.astimezone(_TAIPEI).date()
