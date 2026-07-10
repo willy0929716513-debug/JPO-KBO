@@ -1,10 +1,22 @@
 from datetime import datetime, timezone
 
+import pytest
+
+import src.data.market_hours as market_hours
 from src.data.market_hours import is_market_open
 
 
 def _utc(y, m, d, h, mi=0):
     return datetime(y, m, d, h, mi, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _stub_taiwan_holiday_provider(monkeypatch):
+    # Every test in this file should exercise the weekday+clock heuristic in
+    # isolation, offline -- TaiwanHolidayProvider.is_closed_today() does a
+    # real network call otherwise. Individual tests override this via
+    # monkeypatch when they specifically want to simulate an ad-hoc closure.
+    monkeypatch.setattr(market_hours._taiwan_holiday_provider, "is_closed_today", lambda today=None: False)
 
 
 def test_crypto_always_open():
@@ -36,6 +48,33 @@ def test_taiwan_equity_open_during_session():
 def test_taiwan_equity_closed_outside_session():
     # 06:00 UTC = 2:00pm Asia/Taipei -- after the 13:30 close.
     assert is_market_open("taiwan", _utc(2026, 7, 6, 6, 0)) is False
+
+
+def test_taiwan_equity_closed_on_ad_hoc_closure_during_normal_hours(monkeypatch):
+    # Regression test for a real user report: TWSE was closed 2026-07-10
+    # (an ordinary Friday) for Typhoon Bawi, but the plain weekday+clock
+    # heuristic alone would have said "open" during 09:00-13:30. When
+    # TaiwanHolidayProvider confirms an ad-hoc closure, is_market_open must
+    # report closed even though it's a weekday within regular hours.
+    monkeypatch.setattr(market_hours._taiwan_holiday_provider, "is_closed_today", lambda today=None: True)
+    # 02:00 UTC = 10:00am Asia/Taipei on a Friday -- squarely within normal hours.
+    assert is_market_open("taiwan", _utc(2026, 7, 10, 2, 0)) is False
+
+
+def test_taiwan_equity_not_affected_by_ad_hoc_closure_check_outside_hours(monkeypatch):
+    # The ad-hoc closure check should only even be consulted when the
+    # weekday+clock heuristic would otherwise say "open" -- no need to
+    # short-circuit differently outside trading hours, but this locks in
+    # that behavior doesn't regress either way.
+    calls = []
+
+    def _tracking_is_closed_today(today=None):
+        calls.append(today)
+        return False
+
+    monkeypatch.setattr(market_hours._taiwan_holiday_provider, "is_closed_today", _tracking_is_closed_today)
+    assert is_market_open("taiwan", _utc(2026, 7, 6, 6, 0)) is False  # after close
+    assert calls == []  # never consulted once already closed by the clock
 
 
 def test_forex_and_futures_open_on_weekday():
