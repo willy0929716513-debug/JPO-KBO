@@ -112,3 +112,4 @@ def test_status_reflects_error_when_the_gemini_call_itself_fails(monkeypatch):
         result = _get_forward_looking_picks(_results_with_news(), {})
     assert result["status"] == "error"
     assert result["picks"] == []
+    assert result["detail"] == "HTTP 429"  # already-sanitized by llm_provider.py, safe to persist
