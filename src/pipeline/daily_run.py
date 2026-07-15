@@ -174,14 +174,24 @@ def _get_forward_looking_picks(results: list[dict], previous_payload: dict) -> d
         except (TypeError, ValueError):
             pass  # unparseable timestamp from an older schema -- just regenerate
 
+    provider = GeminiProvider()
+    # Non-secret diagnostic only (true/false, never the key itself) -- lets
+    # the dashboard/README troubleshooting distinguish "no key configured"
+    # from "key configured but Gemini found nothing confident this cycle",
+    # which otherwise look identical from the outside (both show 0 picks).
+    key_configured = bool(provider.api_key)
     try:
         news_by_symbol = {r["symbol"]: r.get("news", []) for r in results}
         valid_symbols = set(news_by_symbol.keys())
-        picks = GeminiProvider().predict_future_beneficiaries(news_by_symbol, valid_symbols)
+        picks = provider.predict_future_beneficiaries(news_by_symbol, valid_symbols)
     except Exception as exc:
         logger.warning("Forward-looking picks generation failed, keeping previous result: %s", exc)
         return previous
-    return {"generated_at": datetime.now(timezone.utc).isoformat(), "picks": picks}
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "picks": picks,
+        "key_configured": key_configured,
+    }
 
 
 TAIEX_SYMBOL = "^TWII"  # Yahoo Finance ticker for the Taiwan Weighted Index (加權股價指數)
