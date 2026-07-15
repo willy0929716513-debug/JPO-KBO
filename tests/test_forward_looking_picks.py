@@ -66,3 +66,20 @@ def test_falls_back_to_previous_result_on_generation_failure():
 def test_never_breaks_the_pipeline_with_no_prior_data_and_no_news():
     result = _get_forward_looking_picks([], {})
     assert result["picks"] == []
+
+
+def test_key_configured_diagnostic_reflects_whether_a_key_is_set(monkeypatch):
+    # Non-secret diagnostic (true/false only) so "no key configured" can be
+    # told apart from "key configured but Gemini found nothing this cycle" --
+    # both otherwise look identical (0 picks) from the outside.
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    with patch("src.data.providers.llm_provider.GeminiProvider.predict_future_beneficiaries", return_value=[]):
+        result = _get_forward_looking_picks(_results_with_news(), {})
+    assert result["key_configured"] is True
+
+
+def test_key_configured_diagnostic_is_false_without_a_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with patch("src.data.providers.llm_provider.GeminiProvider.predict_future_beneficiaries", return_value=[]):
+        result = _get_forward_looking_picks(_results_with_news(), {})
+    assert result["key_configured"] is False

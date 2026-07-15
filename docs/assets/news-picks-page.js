@@ -102,12 +102,18 @@ async function loadNewsPicksPage() {
 
     const forwardPanel = document.getElementById("forward-looking-panel");
     const forwardGrid = document.getElementById("forward-looking-grid");
-    const forwardPicks = (payload.forward_looking_picks && payload.forward_looking_picks.picks) || [];
-    if (forwardPicks.length === 0) {
+    const forwardData = payload.forward_looking_picks || {};
+    const forwardPicks = forwardData.picks || [];
+    if (forwardPicks.length === 0 && !forwardData.key_configured) {
+      // No GEMINI_API_KEY configured at all -- keep this section fully
+      // hidden rather than showing an empty box for a feature the user
+      // hasn't opted into.
       forwardPanel.style.display = "none";
     } else {
       forwardPanel.style.display = "";
-      forwardGrid.innerHTML = forwardPicks.map(forwardLookingCardHtml).join("");
+      forwardGrid.innerHTML = forwardPicks.length > 0
+        ? forwardPicks.map(forwardLookingCardHtml).join("")
+        : `<p class="footnote">AI 分析已啟用，但這次沒有找到有信心的跨標的推論（下次更新會再重新分析）。</p>`;
     }
 
     const withNews = (payload.signals || []).filter((s) => s.news_sentiment && s.news && s.news.length > 0);
