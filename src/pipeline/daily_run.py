@@ -26,6 +26,7 @@ from src.config import DOCS_DATA_DIR, settings
 from src.data.market_hours import is_market_open
 from src.data.news_scoring import score_news_batch
 from src.data.providers.ccxt_provider import CCXTProvider
+from src.data.providers.llm_provider import GeminiProvider
 from src.data.providers.macro_provider import MacroProvider
 from src.data.providers.sentiment_provider import SentimentProvider
 from src.data.providers.yfinance_provider import YFinanceProvider
@@ -145,6 +146,42 @@ def _load_news_with_sentiment(symbol: str, asset_class: str) -> tuple[list[dict]
     news = _load_news(symbol, asset_class)
     sentiment = score_news_batch(news)
     return news, sentiment
+
+
+# Regenerating forward-looking picks needs an actual LLM call (Gemini's free
+# tier), unlike the free/instant keyword tagging above -- gated to at most
+# once per hour (rather than every ~5-minute pipeline tick) to stay
+# comfortably inside free-tier rate limits and avoid unnecessary latency/
+# cost. Cross-symbol "might benefit later" reasoning also doesn't need to
+# be any fresher than that -- it's about emerging trends, not live prices.
+FORWARD_LOOKING_PICKS_TTL_SECONDS = 3600
+
+
+def _get_forward_looking_picks(results: list[dict], previous_payload: dict) -> dict:
+    """Per user request: "不要按照現在新聞的趨勢走...根據你收集到的資訊去做判斷"
+    -- reason across the whole watchlist's collected news to flag symbols
+    that might benefit later from trends showing up in OTHER symbols' news,
+    even before their own news catches up. See llm_provider.py for why this
+    needs actual language understanding rather than the keyword tagging in
+    news_scoring.py, and for the fail-safe-empty behavior on any error."""
+    previous = previous_payload.get("forward_looking_picks") or {}
+    previous_generated_at = previous.get("generated_at")
+    if previous_generated_at:
+        try:
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(previous_generated_at)).total_seconds()
+            if age < FORWARD_LOOKING_PICKS_TTL_SECONDS:
+                return previous
+        except (TypeError, ValueError):
+            pass  # unparseable timestamp from an older schema -- just regenerate
+
+    try:
+        news_by_symbol = {r["symbol"]: r.get("news", []) for r in results}
+        valid_symbols = set(news_by_symbol.keys())
+        picks = GeminiProvider().predict_future_beneficiaries(news_by_symbol, valid_symbols)
+    except Exception as exc:
+        logger.warning("Forward-looking picks generation failed, keeping previous result: %s", exc)
+        return previous
+    return {"generated_at": datetime.now(timezone.utc).isoformat(), "picks": picks}
 
 
 TAIEX_SYMBOL = "^TWII"  # Yahoo Finance ticker for the Taiwan Weighted Index (加權股價指數)
@@ -458,6 +495,8 @@ def run_daily_pipeline() -> dict:
         p for key, p in previous_pairs_by_key.items() if key not in fresh_pairs_keys
     ]
 
+    forward_looking_picks = _get_forward_looking_picks(results, previous_payload)
+
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "watchlist_size": sum(len(v) for v in WATCHLIST.values()),
@@ -469,6 +508,7 @@ def run_daily_pipeline() -> dict:
         "taiex": taiex,
         "signals": results,
         "pairs_signals": pairs_signals,
+        "forward_looking_picks": forward_looking_picks,
     }
 
     DOCS_DATA_DIR.mkdir(parents=True, exist_ok=True)

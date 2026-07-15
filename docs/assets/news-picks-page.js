@@ -19,6 +19,24 @@ function newsGroupLabel(group) {
   return ASSET_CLASS_ZH[group] || group;
 }
 
+// Renders one "🔮 AI 前瞻潛力股" card from src/data/providers/llm_provider.py's
+// GeminiProvider output (see daily_run.py's _get_forward_looking_picks --
+// gated to at most once/hour, so this section may not change every refresh).
+function forwardLookingCardHtml(pick) {
+  const name = SYMBOL_NAMES[pick.symbol] || pick.symbol;
+  const basedOnName = pick.based_on_symbol ? (SYMBOL_NAMES[pick.based_on_symbol] || pick.based_on_symbol) : null;
+  const citation = basedOnName
+    ? `<div class="footnote">依據：${escapeHtml(basedOnName)} ${escapeHtml(pick.based_on_symbol)}${
+        pick.based_on_headline ? ` -「${escapeHtml(pick.based_on_headline)}」` : ""
+      }</div>`
+    : "";
+  return `<div class="news-heat-card" data-symbol="${escapeHtml(pick.symbol)}">
+    <div class="news-heat-card-title">${escapeHtml(name)} <span class="pick-symbol">${escapeHtml(pick.symbol)}</span></div>
+    <div class="news-heat-card-members">${escapeHtml(pick.reasoning)}</div>
+    ${citation}
+  </div>`;
+}
+
 function newsPicksReason(s) {
   const bullishNews = (s.news || []).filter((n) => n.tone === "bullish");
   const keywords = [...new Set(bullishNews.flatMap((n) => n.matched_keywords || []))].slice(0, 5);
@@ -81,6 +99,16 @@ async function loadNewsPicksPage() {
       "資料最後更新: " + new Date(payload.generated_at).toLocaleString();
 
     if (typeof paperCacheLatestPrices === "function") paperCacheLatestPrices(payload);
+
+    const forwardPanel = document.getElementById("forward-looking-panel");
+    const forwardGrid = document.getElementById("forward-looking-grid");
+    const forwardPicks = (payload.forward_looking_picks && payload.forward_looking_picks.picks) || [];
+    if (forwardPicks.length === 0) {
+      forwardPanel.style.display = "none";
+    } else {
+      forwardPanel.style.display = "";
+      forwardGrid.innerHTML = forwardPicks.map(forwardLookingCardHtml).join("");
+    }
 
     const withNews = (payload.signals || []).filter((s) => s.news_sentiment && s.news && s.news.length > 0);
 
