@@ -111,9 +111,16 @@ async function loadNewsPicksPage() {
       forwardPanel.style.display = "none";
     } else {
       forwardPanel.style.display = "";
-      forwardGrid.innerHTML = forwardPicks.length > 0
-        ? forwardPicks.map(forwardLookingCardHtml).join("")
-        : `<p class="footnote">AI 分析已啟用，但這次沒有找到有信心的跨標的推論（下次更新會再重新分析）。</p>`;
+      if (forwardPicks.length > 0) {
+        forwardGrid.innerHTML = forwardPicks.map(forwardLookingCardHtml).join("");
+      } else if (forwardData.status === "error") {
+        // Distinct from "ok" + empty: the Gemini call itself failed this
+        // cycle (network/quota/bad response) rather than genuinely finding
+        // nothing -- see src/data/providers/llm_provider.py's status field.
+        forwardGrid.innerHTML = `<p class="footnote">AI 分析這次呼叫時發生問題，下次更新會再重試。</p>`;
+      } else {
+        forwardGrid.innerHTML = `<p class="footnote">AI 分析已啟用，但這次沒有找到有信心的跨標的推論（下次更新會再重新分析）。</p>`;
+      }
     }
 
     const withNews = (payload.signals || []).filter((s) => s.news_sentiment && s.news && s.news.length > 0);

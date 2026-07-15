@@ -183,14 +183,15 @@ def _get_forward_looking_picks(results: list[dict], previous_payload: dict) -> d
     try:
         news_by_symbol = {r["symbol"]: r.get("news", []) for r in results}
         valid_symbols = set(news_by_symbol.keys())
-        picks = provider.predict_future_beneficiaries(news_by_symbol, valid_symbols)
+        outcome = provider.predict_future_beneficiaries(news_by_symbol, valid_symbols)
     except Exception as exc:
         logger.warning("Forward-looking picks generation failed, keeping previous result: %s", exc)
         return previous
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "picks": picks,
+        "picks": outcome["picks"],
         "key_configured": key_configured,
+        "status": outcome["status"],
     }
 
 
