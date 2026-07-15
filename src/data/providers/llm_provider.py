@@ -72,24 +72,29 @@ class GeminiProvider:
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
 
     def predict_future_beneficiaries(self, news_by_symbol: dict[str, list[dict]],
-                                      valid_symbols: set[str]) -> list[dict]:
-        """Returns up to _MAX_PICKS dicts: {"symbol", "reasoning",
-        "based_on_symbol", "based_on_headline"}. Empty list if no API key is
-        configured, no usable news exists, or anything goes wrong."""
+                                      valid_symbols: set[str]) -> dict:
+        """Returns {"status": "no_key"|"no_news"|"error"|"ok", "picks": [...],
+        "detail": str|None}. "ok" with an empty picks list means the call
+        genuinely succeeded and Gemini found nothing confident to report --
+        deliberately kept distinct from "error" (network failure, bad
+        response, unparseable JSON), since both would otherwise show up as
+        "0 picks" on the dashboard with no way to tell them apart."""
         if not self.api_key:
             logger.info("GEMINI_API_KEY not set; skipping AI forward-looking picks")
-            return []
+            return {"status": "no_key", "picks": [], "detail": None}
         news_summary = _build_news_summary(news_by_symbol)
         if not news_summary:
-            return []
+            return {"status": "no_news", "picks": [], "detail": None}
         prompt = _PROMPT_TEMPLATE.format(max_picks=_MAX_PICKS, news_summary=news_summary)
         try:
             raw_text = self._call_gemini(prompt)
-            picks = _parse_picks(raw_text, valid_symbols)
         except Exception as exc:
-            logger.warning("Gemini forward-looking prediction failed: %s", exc)
-            return []
-        return picks[:_MAX_PICKS]
+            logger.warning("Gemini API call failed: %s", exc)
+            return {"status": "error", "picks": [], "detail": str(exc)}
+        picks = _parse_picks(raw_text, valid_symbols)
+        if picks is None:
+            return {"status": "error", "picks": [], "detail": "Gemini response wasn't in the expected format"}
+        return {"status": "ok", "picks": picks[:_MAX_PICKS], "detail": None}
 
     def _call_gemini(self, prompt: str) -> str:
         import requests
@@ -108,15 +113,22 @@ class GeminiProvider:
         return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict]:
+def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
+    """Returns None (a distinct "error" sentinel, not just an empty list) if
+    the response wasn't structurally the JSON shape asked for -- as opposed
+    to a valid-but-empty `{"picks": []}`, which legitimately means Gemini
+    looked and found nothing confident. A pick that gets filtered out below
+    (hallucinated symbol, missing reasoning) doesn't count as a structural
+    failure by itself; only a genuinely malformed/wrong-shaped response does."""
     try:
         parsed = json.loads(raw_text)
     except (json.JSONDecodeError, TypeError):
         logger.warning("Gemini response wasn't valid JSON, discarding this cycle's picks")
-        return []
+        return None
     picks = parsed.get("picks") if isinstance(parsed, dict) else None
     if not isinstance(picks, list):
-        return []
+        logger.warning("Gemini response didn't have the expected {\"picks\": [...]} shape")
+        return None
 
     result = []
     for pick in picks:
