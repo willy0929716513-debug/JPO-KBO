@@ -192,6 +192,7 @@ def _get_forward_looking_picks(results: list[dict], previous_payload: dict) -> d
         "picks": outcome["picks"],
         "key_configured": key_configured,
         "status": outcome["status"],
+        "detail": outcome["detail"],  # already sanitized in llm_provider.py -- safe to persist publicly
     }
 
 

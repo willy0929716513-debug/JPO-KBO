@@ -117,7 +117,11 @@ async function loadNewsPicksPage() {
         // Distinct from "ok" + empty: the Gemini call itself failed this
         // cycle (network/quota/bad response) rather than genuinely finding
         // nothing -- see src/data/providers/llm_provider.py's status field.
-        forwardGrid.innerHTML = `<p class="footnote">AI 分析這次呼叫時發生問題，下次更新會再重試。</p>`;
+        // `detail` is already sanitized server-side (never the raw
+        // exception text, which could embed a request URL) before it ever
+        // reaches this public JSON, so it's safe to show as-is here.
+        const detailText = forwardData.detail ? `（${escapeHtml(forwardData.detail)}）` : "";
+        forwardGrid.innerHTML = `<p class="footnote">AI 分析這次呼叫時發生問題${detailText}，下次更新會再重試。</p>`;
       } else {
         forwardGrid.innerHTML = `<p class="footnote">AI 分析已啟用，但這次沒有找到有信心的跨標的推論（下次更新會再重新分析）。</p>`;
       }

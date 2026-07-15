@@ -63,11 +63,14 @@ def test_predict_returns_ok_status_with_empty_picks_when_gemini_finds_nothing():
 
 def test_predict_returns_error_status_on_network_error():
     provider = GeminiProvider(api_key="fake-key")
-    with patch.object(GeminiProvider, "_call_gemini", side_effect=ConnectionError("blocked")):
+    with patch.object(GeminiProvider, "_call_gemini", side_effect=ConnectionError("blocked: https://x/?key=super-secret")):
         result = provider.predict_future_beneficiaries({"2330.TW": _news("x")}, {"2330.TW"})
     assert result["status"] == "error"
     assert result["picks"] == []
-    assert "blocked" in result["detail"]
+    # detail must never leak the raw exception text (which could embed the
+    # request URL/key) -- only a safe, generic classification.
+    assert result["detail"] == "ConnectionError"
+    assert "super-secret" not in result["detail"]
 
 
 def test_predict_returns_error_status_on_unparseable_response():
@@ -86,8 +89,47 @@ def test_call_gemini_sends_expected_request_shape():
         text = provider._call_gemini("hello")
     assert text == "{}"
     _, kwargs = mock_post.call_args
-    assert kwargs["params"]["key"] == "fake-key"
     assert kwargs["json"]["contents"][0]["parts"][0]["text"] == "hello"
+
+
+def test_call_gemini_sends_key_via_header_not_query_string():
+    # Regression guard: a `?key=...` query parameter would end up embedded
+    # in requests' own exception messages (e.g. HTTPError includes the full
+    # request URL) -- and this repo's error `detail` field is persisted in
+    # the *public* signals_latest.json. The key must only ever travel via
+    # a header, never a query parameter.
+    provider = GeminiProvider(api_key="fake-key")
+    fake_resp = MagicMock()
+    fake_resp.json.return_value = {"candidates": [{"content": {"parts": [{"text": "{}"}]}}]}
+    with patch("requests.post", return_value=fake_resp) as mock_post:
+        provider._call_gemini("hello")
+    _, kwargs = mock_post.call_args
+    assert "params" not in kwargs
+    assert kwargs["headers"]["x-goog-api-key"] == "fake-key"
+
+
+def test_safe_error_detail_never_includes_raw_exception_text():
+    from src.data.providers.llm_provider import _safe_error_detail
+
+    exc = ConnectionError("failed to connect to https://x/?key=super-secret-value")
+    detail = _safe_error_detail(exc)
+    assert "super-secret-value" not in detail
+    assert detail == "ConnectionError"
+
+
+def test_safe_error_detail_reports_http_status_without_leaking_url():
+    from src.data.providers.llm_provider import _safe_error_detail
+    import requests
+
+    fake_response = MagicMock()
+    fake_response.status_code = 429
+    exc = requests.exceptions.HTTPError(
+        "429 Client Error: Too Many Requests for url: https://x/?key=super-secret-value",
+        response=fake_response,
+    )
+    detail = _safe_error_detail(exc)
+    assert detail == "HTTP 429"
+    assert "super-secret-value" not in detail
 
 
 def test_parse_picks_discards_hallucinated_symbol_outside_watchlist():

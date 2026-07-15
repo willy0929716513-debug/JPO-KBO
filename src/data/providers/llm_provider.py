@@ -89,8 +89,9 @@ class GeminiProvider:
         try:
             raw_text = self._call_gemini(prompt)
         except Exception as exc:
-            logger.warning("Gemini API call failed: %s", exc)
-            return {"status": "error", "picks": [], "detail": str(exc)}
+            detail = _safe_error_detail(exc)
+            logger.warning("Gemini API call failed: %s", detail)
+            return {"status": "error", "picks": [], "detail": detail}
         picks = _parse_picks(raw_text, valid_symbols)
         if picks is None:
             return {"status": "error", "picks": [], "detail": "Gemini response wasn't in the expected format"}
@@ -99,9 +100,15 @@ class GeminiProvider:
     def _call_gemini(self, prompt: str) -> str:
         import requests
 
+        # The key goes in a header, never the URL/query string -- requests'
+        # own exception messages (e.g. HTTPError) include the full request
+        # URL, and this repo's `detail` field ends up in the *public*
+        # signals_latest.json on GitHub Pages. A `?key=...` query parameter
+        # would have leaked the live API key into that public file the
+        # moment a call ever failed.
         resp = requests.post(
             _GEMINI_URL,
-            params={"key": self.api_key},
+            headers={"x-goog-api-key": self.api_key},
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.3},
@@ -111,6 +118,23 @@ class GeminiProvider:
         resp.raise_for_status()
         data = resp.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def _safe_error_detail(exc: Exception) -> str:
+    """A short, safe-to-publish description of a failed Gemini call --
+    deliberately NOT `str(exc)`. requests' own exceptions (HTTPError,
+    ConnectionError, etc.) routinely embed the full request URL in their
+    message, which would otherwise carry the key through to _call_gemini's
+    caller even with the header-based auth fix above (e.g. a proxy or
+    redirect could still surface it in some requests versions) -- this
+    stays limited to the exception type and, for an HTTP error, its status
+    code, both safe to display and to persist in the public
+    signals_latest.json."""
+    import requests
+
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        return f"HTTP {exc.response.status_code}"
+    return type(exc).__name__
 
 
 def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
