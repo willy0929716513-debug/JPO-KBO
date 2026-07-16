@@ -39,7 +39,7 @@ def test_reuses_recent_previous_picks_without_calling_the_api():
 
 def test_regenerates_when_previous_picks_are_stale():
     stale = {
-        "generated_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+        "generated_at": (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(),
         "picks": [{"symbol": "2454.TW", "reasoning": "stale"}],
     }
     with patch("src.data.providers.llm_provider.GeminiProvider.predict_future_beneficiaries",
@@ -59,7 +59,7 @@ def test_regenerates_when_previous_timestamp_is_unparseable():
 
 def test_falls_back_to_previous_result_on_generation_failure():
     previous = {
-        "generated_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+        "generated_at": (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(),
         "picks": [{"symbol": "2454.TW", "reasoning": "last known good"}],
     }
     with patch("src.data.providers.llm_provider.GeminiProvider.predict_future_beneficiaries",
