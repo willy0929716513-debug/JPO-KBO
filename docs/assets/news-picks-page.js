@@ -21,7 +21,7 @@ function newsGroupLabel(group) {
 
 // Renders one "🔮 AI 前瞻潛力股" card from src/data/providers/llm_provider.py's
 // GeminiProvider output (see daily_run.py's _get_forward_looking_picks --
-// gated to at most once/hour, so this section may not change every refresh).
+// gated to at most once/day, so this section may not change every refresh).
 function forwardLookingCardHtml(pick) {
   const name = SYMBOL_NAMES[pick.symbol] || pick.symbol;
   const basedOnName = pick.based_on_symbol ? (SYMBOL_NAMES[pick.based_on_symbol] || pick.based_on_symbol) : null;

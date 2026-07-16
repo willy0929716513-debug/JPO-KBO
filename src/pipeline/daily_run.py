@@ -149,12 +149,15 @@ def _load_news_with_sentiment(symbol: str, asset_class: str) -> tuple[list[dict]
 
 
 # Regenerating forward-looking picks needs an actual LLM call (Gemini's free
-# tier), unlike the free/instant keyword tagging above -- gated to at most
-# once per hour (rather than every ~5-minute pipeline tick) to stay
-# comfortably inside free-tier rate limits and avoid unnecessary latency/
-# cost. Cross-symbol "might benefit later" reasoning also doesn't need to
-# be any fresher than that -- it's about emerging trends, not live prices.
-FORWARD_LOOKING_PICKS_TTL_SECONDS = 3600
+# tier), unlike the free/instant keyword tagging above. Originally gated to
+# once/hour, but a real HTTP 429 (rate/quota exceeded) surfaced in
+# production during 2026-07 troubleshooting -- likely from repeatedly
+# restarting the pipeline while debugging, but per user request ("減少那個
+# 額度使用，一天做一次就好了") tightened to once per day regardless, to
+# stay comfortably inside free-tier limits with margin to spare. Cross-
+# symbol "might benefit later" reasoning doesn't need to be any fresher
+# than that -- it's about emerging trends, not live prices.
+FORWARD_LOOKING_PICKS_TTL_SECONDS = 24 * 3600
 
 
 def _get_forward_looking_picks(results: list[dict], previous_payload: dict) -> dict:
