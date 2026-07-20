@@ -15,9 +15,9 @@ from src.pipeline import auto_trader
 
 
 def _signal(symbol, action, price, stop_loss=None, take_profit=None, vetoed=False, de_action=None,
-            confidence=0.5, votes=None, backtest=None, asset_class="taiwan"):
+            confidence=0.5, votes=None, backtest=None, asset_class="taiwan", market_open=True):
     return {
-        "symbol": symbol, "last_price": price, "asset_class": asset_class,
+        "symbol": symbol, "last_price": price, "asset_class": asset_class, "market_open": market_open,
         "signal": {"final_action": action, "confidence": confidence, "stop_loss": stop_loss,
                    "take_profit": take_profit, "votes": votes or []},
         "decision_engine": {"action": de_action or action, "confidence": confidence, "vetoed": vetoed},
@@ -196,6 +196,61 @@ def test_take_profit_force_closes_open_position():
     assert state["history"][0]["close_reason"] == "take_profit"
     assert state["history"][0]["price"] == 80.0
     assert state["realized_pnl"] > 0
+
+
+def test_market_close_force_closes_open_position_for_day_trading():
+    """Per user request ("10000塊的部分我想要改成玩當沖"): this account never
+    carries a position overnight. Once market_open goes False for a symbol
+    still held, it must be force-closed at the live price even though no
+    stop/target fired."""
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t",
+                                "stop_loss": 80.0, "take_profit": 120.0, "asset_class": "taiwan"}
+    signals = [_signal("A", "HOLD", 105.0, market_open=False)]  # neither stop nor target hit
+    state = auto_trader.run_tick(signals, state)
+
+    assert "A" not in state["positions"]
+    assert state["history"][0]["close_reason"] == "day_trade_close"
+    assert state["history"][0]["price"] == 105.0  # closed at the live price, not stop/target
+
+
+def test_stop_loss_still_takes_priority_over_market_close():
+    """If both the stop-loss and the market-close condition would apply in
+    the same tick, the stop-loss (and its exact stop price) wins -- the
+    close_reason and fill price should reflect the risk-management exit,
+    not get overwritten by the day-trading flatten."""
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t",
+                                "stop_loss": 90.0, "take_profit": None, "asset_class": "taiwan"}
+    signals = [_signal("A", "HOLD", 85.0, market_open=False)]  # price fell through the stop AND market closed
+    state = auto_trader.run_tick(signals, state)
+
+    assert "A" not in state["positions"]
+    assert state["history"][0]["close_reason"] == "stop_loss"
+    assert state["history"][0]["price"] == 90.0
+
+
+def test_does_not_open_new_position_when_market_is_closed():
+    """A day trade can only be opened during that market's own session --
+    a BUY/SELL recommendation carried forward while its market is closed
+    (market_open is False) must not open a fresh position."""
+    state = auto_trader._empty_state()
+    signals = [_signal("CLOSED", "BUY", 100.0, market_open=False), _signal("OPEN", "BUY", 100.0, market_open=True)]
+    state = auto_trader.run_tick(signals, state)
+
+    assert "CLOSED" not in state["positions"]
+    assert "OPEN" in state["positions"]
+
+
+def test_missing_market_open_field_does_not_block_opening_or_closing():
+    """Signals without a market_open key at all (e.g. from an older payload
+    shape) must behave exactly as before this feature -- market_open=None
+    is not the same as market_open=False."""
+    state = auto_trader._empty_state()
+    signal = _signal("A", "BUY", 100.0)
+    del signal["market_open"]
+    state = auto_trader.run_tick([signal], state)
+    assert "A" in state["positions"]
 
 
 def test_closes_position_when_signal_flips_away():

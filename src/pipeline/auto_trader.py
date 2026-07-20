@@ -237,10 +237,14 @@ def _close_position(state: dict, symbol: str, price: float, close_reason: str | 
 
 def run_tick(signals: list[dict], state: dict) -> dict:
     """Advances the always-on auto-trade account by one pipeline cycle:
-    enforce stop-loss/take-profit, close positions whose signal flipped
-    away, then open a position for every current BUY/SELL recommendation
-    not already held (budget split evenly across however many are needed,
-    capped at the normal lot size when there's room to spare)."""
+    enforce stop-loss/take-profit, force-close anything still open once its
+    market closes for the day (當沖 -- day trading, per user request: this
+    account never carries a position overnight), close positions whose
+    signal flipped away, then open a position for every current BUY/SELL
+    recommendation not already held (budget split evenly across however
+    many are needed, capped at the normal lot size when there's room to
+    spare) -- skipping any symbol whose market isn't currently open, since
+    a day trade can only be opened during that market's own session."""
     by_symbol = {s["symbol"]: s for s in signals if s.get("last_price") is not None}
 
     for symbol, pos in list(state["positions"].items()):
@@ -257,6 +261,13 @@ def run_tick(signals: list[dict], state: dict) -> dict:
         if hit_stop or hit_target:
             _close_position(state, symbol, pos["stop_loss"] if hit_stop else pos["take_profit"],
                              "stop_loss" if hit_stop else "take_profit")
+        elif sig.get("market_open") is False:
+            # Stop/target didn't fire first -- the trading day simply ended
+            # while still holding this position. A day trader flattens
+            # before the close no matter what, so force it out here rather
+            # than letting it carry over (and re-open a fresh position) the
+            # next time this market opens.
+            _close_position(state, symbol, price, "day_trade_close")
 
     for symbol, pos in list(state["positions"].items()):
         sig = by_symbol.get(symbol)
@@ -277,6 +288,11 @@ def run_tick(signals: list[dict], state: dict) -> dict:
     candidates = []
     for s in signals:
         if s.get("last_price") is None or s["symbol"] in state["positions"]:
+            continue
+        if s.get("market_open") is False:
+            # 當沖 only trades within a single session -- a signal carried
+            # forward while its market is closed can't be acted on until
+            # that market reopens, so don't open a fresh position on it now.
             continue
         action = _effective_action(s)
         if action not in ("BUY", "SELL"):
