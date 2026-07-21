@@ -36,7 +36,18 @@ import os
 
 logger = logging.getLogger(__name__)
 
-_GEMINI_MODEL = "gemini-2.0-flash"
+# 2026-07: was "gemini-2.0-flash", which Google fully shut down 2026-06-01.
+# Persistent HTTP 429s that survived cutting call frequency to once/day (see
+# FORWARD_LOOKING_PICKS_TTL_SECONDS in daily_run.py) were mistaken for a
+# quota/rate-limit problem for weeks -- most likely explanation in hindsight
+# is calls to the retired model itself being throttled/rejected, not a
+# legitimate quota being exhausted by once-a-day traffic.
+# gemini-2.5-flash-lite is Google's current free-tier model
+# with the most generous quota (1,000 requests/day vs. 250 for plain
+# gemini-2.5-flash) and no announced shutdown date as of this writing --
+# see https://ai.google.dev/gemini-api/docs/deprecations before assuming a
+# future 429 here is a quota issue rather than another silent retirement.
+_GEMINI_MODEL = "gemini-2.5-flash-lite"
 _GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{_GEMINI_MODEL}:generateContent"
 _MAX_HEADLINES_PER_SYMBOL = 3
 _MAX_PICKS = 5
