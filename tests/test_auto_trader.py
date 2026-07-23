@@ -44,6 +44,7 @@ def test_position_and_history_record_asset_class_for_unit_labeling():
     assert state["history"][0]["asset_class"] == "taiwan"
 
     state = auto_trader.run_tick([_signal("A", "HOLD", 100.0, asset_class="taiwan")], state)
+    state = auto_trader.run_tick([_signal("A", "HOLD", 100.0, asset_class="taiwan")], state)
     close_entries = [h for h in state["history"] if h["action"] == "close"]
     assert close_entries[0]["asset_class"] == "taiwan"
 
@@ -134,6 +135,7 @@ def test_closing_usd_position_reports_both_twd_and_usd_pnl():
         "stop_loss": None, "take_profit": None, "asset_class": "metal", "currency": "USD",
     }
     signals = [_signal("SI=F", "HOLD", 90.0, asset_class="metal")]  # price fell 10 -- a short profits
+    state = auto_trader.run_tick(signals, state)
     state = auto_trader.run_tick(signals, state)
 
     assert "SI=F" not in state["positions"]
@@ -253,14 +255,34 @@ def test_missing_market_open_field_does_not_block_opening_or_closing():
     assert "A" in state["positions"]
 
 
-def test_closes_position_when_signal_flips_away():
-    """When the signal flips to the opposite side, the old position is
-    closed and (since that side is still actively recommended) a new
-    position in the new direction opens immediately in the same tick --
-    rather than sitting flat for one extra cycle."""
+def test_signal_flip_does_not_close_on_a_single_tick():
+    """Regression test for a real production issue: auditing actual trade
+    history showed 58 of 103 closes were premature signal-flip closes (not
+    stop-loss/take-profit), with only a 40% win rate -- positions were being
+    closed on the very first opposing tick, before the multi-agent decision
+    had any chance to prove the flip was real rather than noise near the
+    ±0.15 BUY/SELL threshold. A single opposing tick must not close the
+    position by itself anymore."""
     state = auto_trader._empty_state()
     state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": None, "take_profit": None}
     signals = [_signal("A", "SELL", 105.0)]
+    state = auto_trader.run_tick(signals, state)
+
+    assert state["positions"]["A"]["side"] == "long"  # not confirmed yet -- still holding
+    assert state["positions"]["A"]["flip_streak"] == 1
+    assert state["history"] == []
+
+
+def test_closes_position_when_signal_flip_is_confirmed_across_consecutive_ticks():
+    """Once the opposing signal has persisted for FLIP_CONFIRMATION_TICKS
+    consecutive ticks, the old position is closed and (since that side is
+    still actively recommended) a new position in the new direction opens
+    immediately in the same tick -- rather than sitting flat for one extra
+    cycle."""
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": None, "take_profit": None}
+    signals = [_signal("A", "SELL", 105.0)]
+    state = auto_trader.run_tick(signals, state)
     state = auto_trader.run_tick(signals, state)
 
     assert state["positions"]["A"]["side"] == "short"
@@ -268,6 +290,27 @@ def test_closes_position_when_signal_flips_away():
     assert len(close_entries) == 1
     assert close_entries[0]["close_reason"] is None
     assert close_entries[0]["side"] == "long"
+
+
+def test_signal_flip_streak_resets_if_the_flip_does_not_persist():
+    """An opposing signal that doesn't persist (goes back to actively
+    agreeing with the held side) shouldn't leave a stale streak lying
+    around to combine with an unrelated opposing tick much later and
+    trigger an unwarranted close. (Note: dropping to HOLD does NOT reset
+    the streak -- it still counts as "no longer agrees with the held side",
+    same as the original immediate-close rule treated it.)"""
+    state = auto_trader._empty_state()
+    state["positions"]["A"] = {"side": "long", "qty": 10, "avg_price": 100.0, "opened_at": "t", "stop_loss": None, "take_profit": None}
+    state = auto_trader.run_tick([_signal("A", "SELL", 105.0)], state)
+    assert state["positions"]["A"]["flip_streak"] == 1
+
+    state = auto_trader.run_tick([_signal("A", "BUY", 105.0)], state)  # back to agreeing with "long"
+    assert "A" in state["positions"]
+    assert state["positions"]["A"]["flip_streak"] == 0
+
+    state = auto_trader.run_tick([_signal("A", "SELL", 105.0)], state)
+    assert "A" in state["positions"]  # streak restarted at 1, still not confirmed
+    assert state["positions"]["A"]["flip_streak"] == 1
 
 
 def test_budget_splits_across_many_simultaneous_candidates():
