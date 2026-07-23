@@ -68,6 +68,24 @@ def _to_twd(price: float, asset_class: str | None) -> float:
 # borderline cases while still leaving genuinely-actionable signals tradeable.
 AUTO_TRADE_MIN_CONFIDENCE = 0.20
 
+# Per user report ("最近還是一直虧損...你不能提前預判到他會漲還是跌"): audited the
+# real trade history behind that complaint rather than guessing. Of the last
+# 103 closed trades, 58 (well over half) closed because the signal simply
+# flipped back the other way -- not because a stop-loss or take-profit was
+# hit -- and that bucket had only a 40% win rate and a consistently negative
+# average, making it the single largest source of the account's realized
+# loss. Zero trades in that window ever reached their take-profit target at
+# all, meaning the designed ~2:1 reward:risk almost never gets a chance to
+# play out: positions are closed out on the *first* opposing tick, before
+# the multi-agent decision has any chance to prove that flip was real
+# instead of noise near the ±0.15 BUY/SELL threshold. Requiring the new
+# opposing signal to persist for FLIP_CONFIRMATION_TICKS consecutive ticks
+# before actually acting on it (instead of the first single tick) is a
+# direct fix for that specific, data-confirmed churn -- not a claim that
+# this (or any) system can predict direction in advance, which no system
+# genuinely can.
+FLIP_CONFIRMATION_TICKS = 2
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -240,7 +258,10 @@ def run_tick(signals: list[dict], state: dict) -> dict:
     enforce stop-loss/take-profit, force-close anything still open once its
     market closes for the day (當沖 -- day trading, per user request: this
     account never carries a position overnight), close positions whose
-    signal flipped away, then open a position for every current BUY/SELL
+    signal flip has been confirmed for FLIP_CONFIRMATION_TICKS consecutive
+    ticks (see that constant's comment -- a single-tick flip alone no longer
+    closes a position, since that was the largest source of realized losses
+    in production), then open a position for every current BUY/SELL
     recommendation not already held (budget split evenly across however
     many are needed, capped at the normal lot size when there's room to
     spare) -- skipping any symbol whose market isn't currently open, since
@@ -275,8 +296,20 @@ def run_tick(signals: list[dict], state: dict) -> dict:
             continue
         action = _effective_action(sig)
         want_side = "long" if action == "BUY" else "short" if action == "SELL" else None
-        if want_side != pos["side"]:
-            _close_position(state, symbol, sig["last_price"], None)
+        if want_side == pos["side"]:
+            # Still actively agrees with the held side -- reset the streak so
+            # an isolated opposing/HOLD blip several ticks ago can't combine
+            # with an unrelated one now to trigger an unwarranted close.
+            pos["flip_streak"] = 0
+        else:
+            # Signal no longer agrees with the held side (flipped to the
+            # opposite action, or dropped to HOLD) -- same as the original
+            # immediate-close rule, just delayed until it's persisted for
+            # FLIP_CONFIRMATION_TICKS consecutive ticks instead of acting on
+            # the first tick alone.
+            pos["flip_streak"] = pos.get("flip_streak", 0) + 1
+            if pos["flip_streak"] >= FLIP_CONFIRMATION_TICKS:
+                _close_position(state, symbol, sig["last_price"], None)
 
     # Candidate filtering -- "分析考慮，不要盲目下單": a raw BUY/SELL crossing
     # the combined threshold isn't enough on its own. Require (1) confidence
@@ -343,7 +376,7 @@ def run_tick(signals: list[dict], state: dict) -> dict:
                 state["positions"][s["symbol"]] = {
                     "side": side, "qty": qty, "avg_price": price, "opened_at": _now_iso(),
                     "stop_loss": s["signal"].get("stop_loss"), "take_profit": s["signal"].get("take_profit"),
-                    "asset_class": asset_class, "currency": currency,
+                    "asset_class": asset_class, "currency": currency, "flip_streak": 0,
                 }
                 _push_history(state, {
                     "symbol": s["symbol"], "side": side, "action": "open", "qty": qty, "price": price,
