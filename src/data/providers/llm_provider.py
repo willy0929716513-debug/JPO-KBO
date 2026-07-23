@@ -41,13 +41,18 @@ logger = logging.getLogger(__name__)
 # FORWARD_LOOKING_PICKS_TTL_SECONDS in daily_run.py) were mistaken for a
 # quota/rate-limit problem for weeks -- most likely explanation in hindsight
 # is calls to the retired model itself being throttled/rejected, not a
-# legitimate quota being exhausted by once-a-day traffic.
-# gemini-2.5-flash-lite is Google's current free-tier model
-# with the most generous quota (1,000 requests/day vs. 250 for plain
-# gemini-2.5-flash) and no announced shutdown date as of this writing --
-# see https://ai.google.dev/gemini-api/docs/deprecations before assuming a
-# future 429 here is a quota issue rather than another silent retirement.
-_GEMINI_MODEL = "gemini-2.5-flash-lite"
+# legitimate quota being exhausted by once-a-day traffic. Switching to a
+# dated model ID ("gemini-2.5-flash-lite") just moved the same failure mode
+# one step later: it immediately started returning HTTP 404, and Google
+# had *already* shipped 3.1/3.5/3.6 Flash-Lite releases by the time this was
+# investigated -- dated model names in this API are evidently short-lived.
+# Google publishes a rolling "-latest" alias specifically to avoid ever
+# having to chase this again: it always points at whatever the current
+# lite-tier model is, hot-swapped on Google's end (with >=2 weeks' notice
+# for breaking changes), so this constant should never need to change for
+# a routine model refresh again -- only if the alias itself is ever
+# renamed/retired, which would be a much rarer event.
+_GEMINI_MODEL = "gemini-flash-lite-latest"
 _GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{_GEMINI_MODEL}:generateContent"
 _MAX_HEADLINES_PER_SYMBOL = 3
 _MAX_PICKS = 5
