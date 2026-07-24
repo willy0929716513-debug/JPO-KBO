@@ -190,6 +190,14 @@ raise RuntimeError**，所以就算 `TRADING_MODE` 不小心設成 `live`，系�
   而修改。這個教訓：往後如果這個功能又開始一直出現 429 或 404，先查
   https://ai.google.dev/gemini-api/docs/deprecations 目前用的模型是否又被下架，而不是預設又是額度問題——
   但既然已經改用 `-latest` 別名，往後應該不太需要再手動追這件事了。
+- **改用 `-latest` 別名之後，呼叫本身成功了，但回傳內容解析失敗（2026-07，第三次修正）**：換成
+  `gemini-flash-lite-latest` 之後，`detail` 不再是 404/429，改成 `Gemini response wasn't in the expected
+  format`——這其實是進展：代表呼叫本身已經成功了，問題出在回傳的文字沒辦法照預期解析成 JSON。即使程式已經在
+  `generationConfig` 裡要求 `responseMimeType: "application/json"`、prompt 裡也明講「只回傳這個 JSON 格式，
+  不要有其他文字」，有些模型還是會把輸出包在 Markdown 程式碼區塊（` ```json ... ``` `）裡——這是 LLM 結構化
+  輸出常見的通病，不是這個模型獨有的問題。修正方式：在 `_parse_picks()` 解析前，先偵測並拆掉這種 code fence
+  包裝；同時把 `_call_gemini()` 改成拼接回傳裡「所有」的 `parts`，而不是只取第一個，避免萬一內容被拆成多段
+  時漏掉後半段。
 - **失敗安全設計**：跟這個專案其他選用性 API（FRED_API_KEY、Discord/Telegram 通知）一樣，任何失敗（沒設定
   金鑰、網路問題、AI 回傳格式不對）都只會讓這個區塊維持空白或沿用上一批結果，**絕對不會**讓整個訊號產生流程
   掛掉。這個 repo 的開發環境沒辦法連到 Gemini 的正式 API 做上線前驗證（見下方「台股臨時休市偵測」章節裡，

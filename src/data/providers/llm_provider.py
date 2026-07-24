@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,12 @@ class GeminiProvider:
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        # Join every part's text rather than assuming a single part at index
+        # 0 -- a response can legitimately come back split across more than
+        # one part, and indexing [0] alone would silently drop the rest (or
+        # grab the wrong one) instead of failing loudly.
+        parts = data["candidates"][0]["content"]["parts"]
+        return "".join(part.get("text", "") for part in parts)
 
 
 def _safe_error_detail(exc: Exception) -> str:
@@ -153,6 +159,20 @@ def _safe_error_detail(exc: Exception) -> str:
     return type(exc).__name__
 
 
+_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```$", re.DOTALL)
+
+
+def _strip_code_fence(text: str) -> str:
+    """Some models wrap "JSON mode" output in a markdown code fence
+    (```json ... ```) even when responseMimeType=application/json was
+    requested and the prompt explicitly asked for no extra text -- a common,
+    long-documented quirk across LLM JSON output in general, not specific to
+    any one provider. Stripped here so an otherwise-valid response doesn't
+    get discarded as "not JSON" just because of the fence around it."""
+    match = _CODE_FENCE_RE.match(text.strip())
+    return match.group(1).strip() if match else text
+
+
 def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
     """Returns None (a distinct "error" sentinel, not just an empty list) if
     the response wasn't structurally the JSON shape asked for -- as opposed
@@ -161,7 +181,7 @@ def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
     (hallucinated symbol, missing reasoning) doesn't count as a structural
     failure by itself; only a genuinely malformed/wrong-shaped response does."""
     try:
-        parsed = json.loads(raw_text)
+        parsed = json.loads(_strip_code_fence(raw_text))
     except (json.JSONDecodeError, TypeError):
         logger.warning("Gemini response wasn't valid JSON, discarding this cycle's picks")
         return None

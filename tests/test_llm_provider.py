@@ -154,3 +154,38 @@ def test_parse_picks_returns_none_on_unexpected_shape():
 
 def test_parse_picks_returns_empty_list_not_none_when_structurally_valid_but_empty():
     assert _parse_picks(json.dumps({"picks": []}), {"2330.TW"}) == []
+
+
+def test_parse_picks_strips_markdown_code_fence_around_otherwise_valid_json():
+    """Regression test for a real production issue: after migrating to
+    gemini-flash-lite-latest (see the model-migration comment above
+    _GEMINI_MODEL), the AI forward-looking picks feature started failing
+    with "Gemini response wasn't in the expected format" even though
+    responseMimeType=application/json was requested -- some models wrap
+    "JSON mode" output in a markdown code fence anyway, a long-documented
+    quirk of LLM structured output in general, not specific to this
+    provider. An otherwise-valid response shouldn't be discarded just
+    because of the fence around it."""
+    raw = "```json\n" + json.dumps({"picks": [{"symbol": "2330.TW", "reasoning": "x"}]}) + "\n```"
+    assert _parse_picks(raw, {"2330.TW"}) == [
+        {"symbol": "2330.TW", "reasoning": "x", "based_on_symbol": None, "based_on_headline": None}
+    ]
+
+
+def test_parse_picks_strips_code_fence_without_language_tag():
+    raw = "```\n" + json.dumps({"picks": []}) + "\n```"
+    assert _parse_picks(raw, {"2330.TW"}) == []
+
+
+def test_call_gemini_joins_multiple_response_parts():
+    """A response can legitimately come back split across more than one
+    part -- indexing parts[0] alone would silently drop the rest instead of
+    returning the complete text."""
+    provider = GeminiProvider(api_key="fake-key")
+    fake_resp = MagicMock()
+    fake_resp.json.return_value = {
+        "candidates": [{"content": {"parts": [{"text": '{"pi'}, {"text": 'cks": []}'}]}}]
+    }
+    with patch("requests.post", return_value=fake_resp):
+        text = provider._call_gemini("hello")
+    assert text == '{"picks": []}'
