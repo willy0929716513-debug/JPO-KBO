@@ -134,11 +134,21 @@ class GeminiProvider:
         )
         resp.raise_for_status()
         data = resp.json()
+        candidate = data["candidates"][0]
+        finish_reason = candidate.get("finishReason")
+        if finish_reason and finish_reason != "STOP":
+            # e.g. "MAX_TOKENS" would mean the response was cut off
+            # mid-JSON -- surfaced here (server logs only, never the public
+            # signals_latest.json) since a truncated response and a
+            # malformed one both look identical to _parse_picks otherwise,
+            # and this repo's sandbox has no way to call the live API to
+            # reproduce a bad response directly.
+            logger.warning("Gemini finishReason was %r (expected STOP) -- response may be incomplete", finish_reason)
         # Join every part's text rather than assuming a single part at index
         # 0 -- a response can legitimately come back split across more than
         # one part, and indexing [0] alone would silently drop the rest (or
         # grab the wrong one) instead of failing loudly.
-        parts = data["candidates"][0]["content"]["parts"]
+        parts = candidate["content"]["parts"]
         return "".join(part.get("text", "") for part in parts)
 
 
@@ -173,6 +183,20 @@ def _strip_code_fence(text: str) -> str:
     return match.group(1).strip() if match else text
 
 
+_LOG_SNIPPET_LEN = 500
+
+
+def _log_snippet(value) -> str:
+    """A bounded repr for server-log diagnostics only -- never surfaced in
+    the public signals_latest.json. This is model-generated response
+    content, not the API key or any request data, so it's safe to log; the
+    point is purely to stop guessing blind at *why* parsing failed after
+    two earlier fixes (dated model IDs, then markdown code fences) each
+    turned out to only be part of the story."""
+    text = repr(value)
+    return text if len(text) <= _LOG_SNIPPET_LEN else text[:_LOG_SNIPPET_LEN] + "...<truncated>"
+
+
 def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
     """Returns None (a distinct "error" sentinel, not just an empty list) if
     the response wasn't structurally the JSON shape asked for -- as opposed
@@ -183,11 +207,13 @@ def _parse_picks(raw_text: str, valid_symbols: set[str]) -> list[dict] | None:
     try:
         parsed = json.loads(_strip_code_fence(raw_text))
     except (json.JSONDecodeError, TypeError):
-        logger.warning("Gemini response wasn't valid JSON, discarding this cycle's picks")
+        logger.warning("Gemini response wasn't valid JSON, discarding this cycle's picks. Raw response: %s",
+                        _log_snippet(raw_text))
         return None
     picks = parsed.get("picks") if isinstance(parsed, dict) else None
     if not isinstance(picks, list):
-        logger.warning("Gemini response didn't have the expected {\"picks\": [...]} shape")
+        logger.warning("Gemini response didn't have the expected {\"picks\": [...]} shape. Parsed response: %s",
+                        _log_snippet(parsed))
         return None
 
     result = []

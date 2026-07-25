@@ -177,6 +177,28 @@ def test_parse_picks_strips_code_fence_without_language_tag():
     assert _parse_picks(raw, {"2330.TW"}) == []
 
 
+def test_call_gemini_logs_non_stop_finish_reason(caplog):
+    """A finishReason other than STOP (e.g. MAX_TOKENS) means the response
+    may have been cut off mid-JSON -- surfaced in server logs only (never
+    the public signals_latest.json) so a truncated response can actually be
+    diagnosed from a real production failure instead of guessed at, since
+    this repo's sandbox has no way to call the live API directly."""
+    provider = GeminiProvider(api_key="fake-key")
+    fake_resp = MagicMock()
+    fake_resp.json.return_value = {
+        "candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"pi'}]}}]
+    }
+    with patch("requests.post", return_value=fake_resp), caplog.at_level("WARNING"):
+        provider._call_gemini("hello")
+    assert "MAX_TOKENS" in caplog.text
+
+
+def test_parse_picks_logs_raw_response_snippet_on_malformed_json(caplog):
+    with caplog.at_level("WARNING"):
+        _parse_picks("not json at all", {"2330.TW"})
+    assert "not json at all" in caplog.text
+
+
 def test_call_gemini_joins_multiple_response_parts():
     """A response can legitimately come back split across more than one
     part -- indexing parts[0] alone would silently drop the rest instead of
