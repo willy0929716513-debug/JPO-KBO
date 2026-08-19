@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-19T22:05:05.658940+00:00",
+  "generated_at": "2026-08-19T22:10:24.134550+00:00",
   "watchlist_size": 60,
   "successful": 60,
   "errors": [],
@@ -12202,22 +12202,22 @@
     {
       "symbol": "GC=F",
       "asset_class": "metal",
-      "last_price": 4580.7001953125,
-      "change_pct": 4.92,
+      "last_price": 4581.10009765625,
+      "change_pct": 4.93,
       "as_of": "2026-08-19 00:00:00",
       "regime": {
         "state": "bull_trend",
-        "trend_strength_adx": 27.53,
+        "trend_strength_adx": 27.52,
         "volatility_percentile": 0.615,
         "direction": 1
       },
       "signal": {
         "symbol": "GC=F",
         "final_action": "BUY",
-        "confidence": 0.452,
-        "price": 4580.700195,
-        "stop_loss": 4409.598426,
-        "take_profit": 4922.903733,
+        "confidence": 0.201,
+        "price": 4581.100098,
+        "stop_loss": 4410.198315,
+        "take_profit": 4922.903663,
         "regime": "bull_trend",
         "votes": [
           {
@@ -12225,9 +12225,9 @@
             "strategy": "trend_following",
             "action": "BUY",
             "confidence": 0.575,
-            "price": 4580.700195,
-            "stop_loss": 4409.598426,
-            "take_profit": 4922.903733,
+            "price": 4581.100098,
+            "stop_loss": 4410.198315,
+            "take_profit": 4922.903663,
             "reasons": [
               "EMA20 > EMA50 (uptrend)",
               "ADX=27.5 >= 20.0 (strong trend)",
@@ -12241,7 +12241,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 4580.700195,
+            "price": 4581.100098,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12253,14 +12253,13 @@
           {
             "symbol": "GC=F",
             "strategy": "breakout",
-            "action": "BUY",
-            "confidence": 0.9,
-            "price": 4580.700195,
-            "stop_loss": 4409.598426,
-            "take_profit": 4922.903733,
+            "action": "HOLD",
+            "confidence": 0.3,
+            "price": 4581.100098,
+            "stop_loss": null,
+            "take_profit": null,
             "reasons": [
-              "Close broke above 20-bar Donchian upper channel",
-              "Volume ratio 13.36x average (confirmed)"
+              "No confirmed channel breakout"
             ],
             "timestamp": null,
             "weight": 1.2
@@ -12270,7 +12269,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 4580.700195,
+            "price": 4581.100098,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12284,13 +12283,13 @@
       "decision_engine": {
         "symbol": "GC=F",
         "action": "BUY",
-        "confidence": 0.452,
+        "confidence": 0.201,
         "vetoed": false,
         "opinions": [
           {
             "agent": "technical_agent",
-            "lean": 0.452,
-            "confidence": 0.452,
+            "lean": 0.201,
+            "confidence": 0.201,
             "veto": false,
             "reasons": [
               "Regime=bull_trend",
@@ -12328,7 +12327,7 @@
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": 14.77,
+          "total_return_pct": 14.78,
           "cagr_pct": 1.39,
           "sharpe_ratio": -0.14,
           "sortino_ratio": -0.18,
@@ -12339,7 +12338,7 @@
           "max_drawdown_pct": -25.43,
           "win_rate_pct": 39.83,
           "profit_factor": 1.141,
-          "expectancy": 226.74,
+          "expectancy": 226.83,
           "recovery_factor": 0.581,
           "num_trades": 118
         },
@@ -12360,20 +12359,20 @@
           "num_trades": 27
         },
         "breakout": {
-          "total_return_pct": 19.61,
-          "cagr_pct": 1.81,
-          "sharpe_ratio": -0.288,
-          "sortino_ratio": -0.399,
-          "calmar_ratio": 0.09,
-          "mar_ratio": 0.09,
-          "omega_ratio": 1.111,
-          "sqn": 0.968,
+          "total_return_pct": 19.85,
+          "cagr_pct": 1.83,
+          "sharpe_ratio": -0.285,
+          "sortino_ratio": -0.395,
+          "calmar_ratio": 0.091,
+          "mar_ratio": 0.091,
+          "omega_ratio": 1.112,
+          "sqn": 0.973,
           "max_drawdown_pct": -20.05,
-          "win_rate_pct": 46.51,
-          "profit_factor": 1.38,
-          "expectancy": 567.11,
-          "recovery_factor": 0.978,
-          "num_trades": 43
+          "win_rate_pct": 47.62,
+          "profit_factor": 1.383,
+          "expectancy": 583.46,
+          "recovery_factor": 0.99,
+          "num_trades": 42
         },
         "momentum": {
           "total_return_pct": -15.66,
@@ -12394,11 +12393,11 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 71.6,
-        "macd_hist": 34.3106,
-        "sma_20": 4231.435,
-        "sma_50": 4162.326,
-        "volume_ratio": 13.36,
+        "rsi_14": 71.7,
+        "macd_hist": 34.3361,
+        "sma_20": 4231.455,
+        "sma_50": 4162.334,
+        "volume_ratio": 0.02,
         "atr_pct": 1.87
       },
       "news": [
@@ -12437,22 +12436,22 @@
     {
       "symbol": "SI=F",
       "asset_class": "metal",
-      "last_price": 67.12999725341797,
-      "change_pct": 4.99,
+      "last_price": 67.1500015258789,
+      "change_pct": 5.02,
       "as_of": "2026-08-19 00:00:00",
       "regime": {
         "state": "bear_trend",
-        "trend_strength_adx": 27.48,
+        "trend_strength_adx": 27.49,
         "volatility_percentile": 0.214,
         "direction": 1
       },
       "signal": {
         "symbol": "SI=F",
-        "final_action": "BUY",
-        "confidence": 0.251,
-        "price": 67.129997,
-        "stop_loss": 63.523972,
-        "take_profit": 74.342047,
+        "final_action": "HOLD",
+        "confidence": 0.0,
+        "price": 67.150002,
+        "stop_loss": null,
+        "take_profit": null,
         "regime": "bear_trend",
         "votes": [
           {
@@ -12460,7 +12459,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 67.129997,
+            "price": 67.150002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12474,7 +12473,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 67.129997,
+            "price": 67.150002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12486,14 +12485,13 @@
           {
             "symbol": "SI=F",
             "strategy": "breakout",
-            "action": "BUY",
-            "confidence": 0.9,
-            "price": 67.129997,
-            "stop_loss": 63.523972,
-            "take_profit": 74.342047,
+            "action": "HOLD",
+            "confidence": 0.3,
+            "price": 67.150002,
+            "stop_loss": null,
+            "take_profit": null,
             "reasons": [
-              "Close broke above 20-bar Donchian upper channel",
-              "Volume ratio 19.60x average (confirmed)"
+              "No confirmed channel breakout"
             ],
             "timestamp": null,
             "weight": 1.2
@@ -12503,7 +12501,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 67.129997,
+            "price": 67.150002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12516,18 +12514,18 @@
       },
       "decision_engine": {
         "symbol": "SI=F",
-        "action": "BUY",
-        "confidence": 0.251,
+        "action": "HOLD",
+        "confidence": 0.0,
         "vetoed": false,
         "opinions": [
           {
             "agent": "technical_agent",
-            "lean": 0.251,
-            "confidence": 0.251,
+            "lean": 0.0,
+            "confidence": 0.0,
             "veto": false,
             "reasons": [
               "Regime=bear_trend",
-              "Combined strategy action=BUY"
+              "Combined strategy action=HOLD"
             ]
           },
           {
@@ -12593,19 +12591,19 @@
           "num_trades": 26
         },
         "breakout": {
-          "total_return_pct": 16.07,
+          "total_return_pct": 16.1,
           "cagr_pct": 1.51,
           "sharpe_ratio": -0.166,
           "sortino_ratio": -0.245,
           "calmar_ratio": 0.056,
           "mar_ratio": 0.056,
-          "omega_ratio": 1.081,
-          "sqn": 0.582,
+          "omega_ratio": 1.082,
+          "sqn": 0.583,
           "max_drawdown_pct": -26.91,
           "win_rate_pct": 38.64,
           "profit_factor": 1.227,
-          "expectancy": 461.8,
-          "recovery_factor": 0.597,
+          "expectancy": 462.58,
+          "recovery_factor": 0.598,
           "num_trades": 44
         },
         "momentum": {
@@ -12628,11 +12626,11 @@
       "feature_count": 114,
       "indicators": {
         "rsi_14": 63.0,
-        "macd_hist": 0.7105,
-        "sma_20": 61.6783,
-        "sma_50": 61.5155,
-        "volume_ratio": 19.6,
-        "atr_pct": 2.69
+        "macd_hist": 0.7118,
+        "sma_20": 61.6794,
+        "sma_50": 61.5159,
+        "volume_ratio": 1.21,
+        "atr_pct": 2.53
       },
       "news": [
         {
@@ -12670,12 +12668,12 @@
     {
       "symbol": "CL=F",
       "asset_class": "energy",
-      "last_price": 84.4000015258789,
-      "change_pct": -0.64,
+      "last_price": 84.44000244140625,
+      "change_pct": -0.59,
       "as_of": "2026-08-19 00:00:00",
       "regime": {
         "state": "range_bound",
-        "trend_strength_adx": 15.52,
+        "trend_strength_adx": 15.83,
         "volatility_percentile": 0.73,
         "direction": 1
       },
@@ -12683,7 +12681,7 @@
         "symbol": "CL=F",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 84.400002,
+        "price": 84.440002,
         "stop_loss": null,
         "take_profit": null,
         "regime": "range_bound",
@@ -12693,7 +12691,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 84.400002,
+            "price": 84.440002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12707,7 +12705,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 84.400002,
+            "price": 84.440002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12721,7 +12719,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 84.400002,
+            "price": 84.440002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12735,7 +12733,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 84.400002,
+            "price": 84.440002,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12859,12 +12857,12 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 55.3,
-        "macd_hist": 0.4059,
-        "sma_20": 82.449,
-        "sma_50": 79.1304,
-        "volume_ratio": 0.89,
-        "atr_pct": 4.4
+        "rsi_14": 55.4,
+        "macd_hist": 0.4084,
+        "sma_20": 82.451,
+        "sma_50": 79.1312,
+        "volume_ratio": 0.0,
+        "atr_pct": 4.24
       },
       "news": [
         {
@@ -13139,22 +13137,22 @@
     {
       "symbol": "BTC/USDT",
       "asset_class": "crypto",
-      "last_price": 69520.1,
-      "change_pct": 7.4,
+      "last_price": 69388.2,
+      "change_pct": 7.2,
       "as_of": "2026-08-19 00:00:00",
       "regime": {
         "state": "range_bound",
         "trend_strength_adx": 14.98,
-        "volatility_percentile": 0.512,
+        "volatility_percentile": 0.508,
         "direction": 1
       },
       "signal": {
         "symbol": "BTC/USDT",
         "final_action": "SELL",
-        "confidence": 0.161,
-        "price": 69520.1,
-        "stop_loss": 71891.272077,
-        "take_profit": 64150.17,
+        "confidence": 0.159,
+        "price": 69388.2,
+        "stop_loss": 71759.372077,
+        "take_profit": 64143.575,
         "regime": "range_bound",
         "votes": [
           {
@@ -13162,7 +13160,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 69520.1,
+            "price": 69388.2,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -13175,12 +13173,12 @@
             "symbol": "BTC/USDT",
             "strategy": "mean_reversion",
             "action": "SELL",
-            "confidence": 0.54,
-            "price": 69520.1,
-            "stop_loss": 71891.272077,
-            "take_profit": 64150.17,
+            "confidence": 0.537,
+            "price": 69388.2,
+            "stop_loss": 71759.372077,
+            "take_profit": 64143.575,
             "reasons": [
-              "RSI=74.0 >= 70.0 (overbought)",
+              "RSI=73.7 >= 70.0 (overbought)",
               "Price at/above upper Bollinger Band",
               "Market in range (low ADX)"
             ],
@@ -13191,13 +13189,13 @@
             "symbol": "BTC/USDT",
             "strategy": "breakout",
             "action": "BUY",
-            "confidence": 0.731,
-            "price": 69520.1,
-            "stop_loss": 66358.537231,
-            "take_profit": 75843.225539,
+            "confidence": 0.733,
+            "price": 69388.2,
+            "stop_loss": 66226.637231,
+            "take_profit": 75711.325539,
             "reasons": [
               "Close broke above 20-bar Donchian upper channel",
-              "Volume ratio 3.11x average (confirmed)"
+              "Volume ratio 3.13x average (confirmed)"
             ],
             "timestamp": null,
             "weight": 0.5
@@ -13207,7 +13205,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 69520.1,
+            "price": 69388.2,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -13221,13 +13219,13 @@
       "decision_engine": {
         "symbol": "BTC/USDT",
         "action": "HOLD",
-        "confidence": 0.063,
+        "confidence": 0.062,
         "vetoed": false,
         "opinions": [
           {
             "agent": "technical_agent",
-            "lean": -0.161,
-            "confidence": 0.161,
+            "lean": -0.159,
+            "confidence": 0.159,
             "veto": false,
             "reasons": [
               "Regime=range_bound",
@@ -13331,12 +13329,12 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 74.0,
-        "macd_hist": 382.2747,
-        "sma_20": 64150.17,
-        "sma_50": 64031.262,
-        "volume_ratio": 3.11,
-        "atr_pct": 2.27
+        "rsi_14": 73.7,
+        "macd_hist": 373.8571,
+        "sma_20": 64143.575,
+        "sma_50": 64028.624,
+        "volume_ratio": 3.13,
+        "atr_pct": 2.28
       },
       "news": [],
       "news_sentiment": {
@@ -13349,8 +13347,8 @@
     {
       "symbol": "ETH/USDT",
       "asset_class": "crypto",
-      "last_price": 2270.12,
-      "change_pct": 18.37,
+      "last_price": 2272.0,
+      "change_pct": 18.46,
       "as_of": "2026-08-19 00:00:00",
       "regime": {
         "state": "high_volatility",
@@ -13362,9 +13360,9 @@
         "symbol": "ETH/USDT",
         "final_action": "BUY",
         "confidence": 0.344,
-        "price": 2270.12,
-        "stop_loss": 2123.035758,
-        "take_profit": 2527.517423,
+        "price": 2272.0,
+        "stop_loss": 2124.915758,
+        "take_profit": 2529.397423,
         "regime": "high_volatility",
         "votes": [
           {
@@ -13372,7 +13370,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 2270.12,
+            "price": 2272.0,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -13385,12 +13383,12 @@
             "symbol": "ETH/USDT",
             "strategy": "mean_reversion",
             "action": "SELL",
-            "confidence": 0.627,
-            "price": 2270.12,
-            "stop_loss": 2380.433181,
-            "take_profit": 1907.18,
+            "confidence": 0.628,
+            "price": 2272.0,
+            "stop_loss": 2382.313181,
+            "take_profit": 1907.274,
             "reasons": [
-              "RSI=82.7 >= 70.0 (overbought)",
+              "RSI=82.8 >= 70.0 (overbought)",
               "Price at/above upper Bollinger Band",
               "Market in range (low ADX)"
             ],
@@ -13402,12 +13400,12 @@
             "strategy": "breakout",
             "action": "BUY",
             "confidence": 0.9,
-            "price": 2270.12,
-            "stop_loss": 2123.035758,
-            "take_profit": 2564.288484,
+            "price": 2272.0,
+            "stop_loss": 2124.915758,
+            "take_profit": 2566.168484,
             "reasons": [
               "Close broke above 20-bar Donchian upper channel",
-              "Volume ratio 4.92x average (confirmed)"
+              "Volume ratio 4.94x average (confirmed)"
             ],
             "timestamp": null,
             "weight": 0.7
@@ -13417,12 +13415,12 @@
             "strategy": "momentum",
             "action": "BUY",
             "confidence": 0.85,
-            "price": 2270.12,
-            "stop_loss": 2123.035758,
-            "take_profit": 2490.746363,
+            "price": 2272.0,
+            "stop_loss": 2124.915758,
+            "take_profit": 2492.626363,
             "reasons": [
               "MACD histogram crossed above zero",
-              "10-bar ROC=18.81% (positive momentum)"
+              "10-bar ROC=18.90% (positive momentum)"
             ],
             "timestamp": null,
             "weight": 0.6
@@ -13542,11 +13540,11 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 82.7,
-        "macd_hist": 22.1936,
-        "sma_20": 1907.18,
-        "sma_50": 1864.8024,
-        "volume_ratio": 4.92,
+        "rsi_14": 82.8,
+        "macd_hist": 22.3136,
+        "sma_20": 1907.274,
+        "sma_50": 1864.84,
+        "volume_ratio": 4.94,
         "atr_pct": 3.24
       },
       "news": [],
@@ -13568,7 +13566,7 @@
       "zscore": 0.0,
       "hedge_ratio": 0.0,
       "cointegrated": false,
-      "p_value": 0.0662,
+      "p_value": 0.0661,
       "reasons": [
         "Pair failed cointegration test (p=0.066 >= 0.05); spread is not statistically mean-reverting, skipping"
       ]
@@ -13582,9 +13580,9 @@
       "zscore": 0.0,
       "hedge_ratio": 0.0,
       "cointegrated": false,
-      "p_value": 0.638,
+      "p_value": 0.6474,
       "reasons": [
-        "Pair failed cointegration test (p=0.638 >= 0.05); spread is not statistically mean-reverting, skipping"
+        "Pair failed cointegration test (p=0.647 >= 0.05); spread is not statistically mean-reverting, skipping"
       ]
     },
     {
