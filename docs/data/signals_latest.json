@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-29T13:39:26.379236+00:00",
+  "generated_at": "2026-10-29T13:45:07.241411+00:00",
   "watchlist_size": 60,
   "successful": 60,
   "errors": [],
@@ -24,9 +24,9 @@
     "drawdown_circuit_breaker_tripped": false,
     "halted": false,
     "breached": [],
-    "daily_pnl_pct": 0.95,
-    "weekly_pnl_pct": 0.93,
-    "monthly_pnl_pct": 0.93
+    "daily_pnl_pct": 1.01,
+    "weekly_pnl_pct": 0.99,
+    "monthly_pnl_pct": 0.99
   },
   "taiex": {
     "symbol": "^TWII",
@@ -10043,8 +10043,8 @@
     {
       "symbol": "AAPL",
       "asset_class": "equity",
-      "last_price": 349.8299865722656,
-      "change_pct": 1.75,
+      "last_price": 349.29998779296875,
+      "change_pct": 1.59,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "low_volatility",
@@ -10056,9 +10056,9 @@
         "symbol": "AAPL",
         "final_action": "BUY",
         "confidence": 0.248,
-        "price": 349.829987,
-        "stop_loss": 337.29542,
-        "take_profit": 371.765479,
+        "price": 349.299988,
+        "stop_loss": 336.765421,
+        "take_profit": 371.23548,
         "regime": "low_volatility",
         "votes": [
           {
@@ -10066,9 +10066,9 @@
             "strategy": "trend_following",
             "action": "BUY",
             "confidence": 0.506,
-            "price": 349.829987,
-            "stop_loss": 337.29542,
-            "take_profit": 374.89912,
+            "price": 349.299988,
+            "stop_loss": 336.765421,
+            "take_profit": 374.369121,
             "reasons": [
               "EMA20 > EMA50 (uptrend)",
               "ADX=20.6 >= 20.0 (strong trend)",
@@ -10082,7 +10082,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 349.829987,
+            "price": 349.299988,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10096,7 +10096,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 349.829987,
+            "price": 349.299988,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10109,13 +10109,13 @@
             "symbol": "AAPL",
             "strategy": "momentum",
             "action": "BUY",
-            "confidence": 0.546,
-            "price": 349.829987,
-            "stop_loss": 337.29542,
-            "take_profit": 368.631837,
+            "confidence": 0.543,
+            "price": 349.299988,
+            "stop_loss": 336.765421,
+            "take_profit": 368.101838,
             "reasons": [
               "MACD histogram crossed above zero",
-              "10-bar ROC=2.29% (positive momentum)"
+              "10-bar ROC=2.13% (positive momentum)"
             ],
             "timestamp": null,
             "weight": 0.8
@@ -10163,25 +10163,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": 8.02,
-          "cagr_pct": 0.78,
-          "sharpe_ratio": -0.018,
-          "sortino_ratio": -0.024,
+          "total_return_pct": 7.85,
+          "cagr_pct": 0.76,
+          "sharpe_ratio": -0.019,
+          "sortino_ratio": -0.025,
           "calmar_ratio": 0.012,
           "mar_ratio": 0.012,
           "omega_ratio": 1.033,
-          "sqn": 0.21,
+          "sqn": 0.209,
           "max_drawdown_pct": -64.35,
           "win_rate_pct": 40.65,
           "profit_factor": 1.046,
-          "expectancy": 223.06,
-          "recovery_factor": 0.125,
+          "expectancy": 221.74,
+          "recovery_factor": 0.122,
           "num_trades": 123
         },
         "mean_reversion": {
@@ -10201,45 +10201,45 @@
           "num_trades": 20
         },
         "breakout": {
-          "total_return_pct": 5.81,
-          "cagr_pct": 0.57,
-          "sharpe_ratio": -0.067,
-          "sortino_ratio": -0.087,
-          "calmar_ratio": 0.012,
-          "mar_ratio": 0.012,
-          "omega_ratio": 1.033,
-          "sqn": 0.198,
-          "max_drawdown_pct": -46.43,
-          "win_rate_pct": 39.76,
-          "profit_factor": 1.052,
-          "expectancy": 188.09,
-          "recovery_factor": 0.125,
-          "num_trades": 83
+          "total_return_pct": 13.43,
+          "cagr_pct": 1.27,
+          "sharpe_ratio": -0.031,
+          "sortino_ratio": -0.041,
+          "calmar_ratio": 0.03,
+          "mar_ratio": 0.03,
+          "omega_ratio": 1.042,
+          "sqn": 0.292,
+          "max_drawdown_pct": -42.49,
+          "win_rate_pct": 40.48,
+          "profit_factor": 1.076,
+          "expectancy": 281.14,
+          "recovery_factor": 0.316,
+          "num_trades": 84
         },
         "momentum": {
-          "total_return_pct": 26.75,
-          "cagr_pct": 2.41,
-          "sharpe_ratio": -0.04,
-          "sortino_ratio": -0.056,
+          "total_return_pct": 26.56,
+          "cagr_pct": 2.39,
+          "sharpe_ratio": -0.041,
+          "sortino_ratio": -0.058,
           "calmar_ratio": 0.07,
           "mar_ratio": 0.07,
           "omega_ratio": 1.076,
-          "sqn": 0.553,
+          "sqn": 0.55,
           "max_drawdown_pct": -34.36,
           "win_rate_pct": 46.74,
-          "profit_factor": 1.134,
-          "expectancy": 419.63,
-          "recovery_factor": 0.778,
+          "profit_factor": 1.133,
+          "expectancy": 417.54,
+          "recovery_factor": 0.773,
           "num_trades": 92
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 62.2,
-        "macd_hist": 0.0549,
-        "sma_20": 341.5825,
-        "sma_50": 332.3926,
-        "volume_ratio": 0.13,
+        "rsi_14": 61.7,
+        "macd_hist": 0.0211,
+        "sma_20": 341.556,
+        "sma_50": 332.382,
+        "volume_ratio": 0.15,
         "atr_pct": 1.79
       },
       "news": [],
@@ -10253,22 +10253,22 @@
     {
       "symbol": "MSFT",
       "asset_class": "equity",
-      "last_price": 531.6099853515625,
-      "change_pct": 0.11,
+      "last_price": 538.3106079101562,
+      "change_pct": 1.37,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bull_trend",
         "trend_strength_adx": 24.04,
-        "volatility_percentile": 0.123,
+        "volatility_percentile": 0.163,
         "direction": 1
       },
       "signal": {
         "symbol": "MSFT",
         "final_action": "BUY",
         "confidence": 0.189,
-        "price": 531.609985,
-        "stop_loss": 509.315515,
-        "take_profit": 576.198927,
+        "price": 538.310608,
+        "stop_loss": 516.016137,
+        "take_profit": 582.899549,
         "regime": "bull_trend",
         "votes": [
           {
@@ -10276,9 +10276,9 @@
             "strategy": "trend_following",
             "action": "BUY",
             "confidence": 0.54,
-            "price": 531.609985,
-            "stop_loss": 509.315515,
-            "take_profit": 576.198927,
+            "price": 538.310608,
+            "stop_loss": 516.016137,
+            "take_profit": 582.899549,
             "reasons": [
               "EMA20 > EMA50 (uptrend)",
               "ADX=24.0 >= 20.0 (strong trend)",
@@ -10292,7 +10292,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 531.609985,
+            "price": 538.310608,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10306,7 +10306,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 531.609985,
+            "price": 538.310608,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10320,7 +10320,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 531.609985,
+            "price": 538.310608,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10372,25 +10372,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": -1.97,
-          "cagr_pct": -0.2,
-          "sharpe_ratio": -0.083,
-          "sortino_ratio": -0.107,
-          "calmar_ratio": -0.005,
-          "mar_ratio": -0.005,
-          "omega_ratio": 1.022,
-          "sqn": 0.13,
+          "total_return_pct": -0.73,
+          "cagr_pct": -0.07,
+          "sharpe_ratio": -0.077,
+          "sortino_ratio": -0.1,
+          "calmar_ratio": -0.002,
+          "mar_ratio": -0.002,
+          "omega_ratio": 1.023,
+          "sqn": 0.146,
           "max_drawdown_pct": -42.16,
           "win_rate_pct": 40.2,
-          "profit_factor": 1.029,
-          "expectancy": 100.39,
-          "recovery_factor": -0.047,
+          "profit_factor": 1.032,
+          "expectancy": 112.52,
+          "recovery_factor": -0.017,
           "num_trades": 102
         },
         "mean_reversion": {
@@ -10444,12 +10444,12 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 56.5,
-        "macd_hist": -1.6768,
-        "sma_20": 530.8355,
-        "sma_50": 512.1248,
-        "volume_ratio": 0.34,
-        "atr_pct": 2.1
+        "rsi_14": 60.4,
+        "macd_hist": -1.2492,
+        "sma_20": 531.1705,
+        "sma_50": 512.2588,
+        "volume_ratio": 0.4,
+        "atr_pct": 2.07
       },
       "news": [],
       "news_sentiment": {
@@ -10462,8 +10462,8 @@
     {
       "symbol": "NVDA",
       "asset_class": "equity",
-      "last_price": 212.98500061035156,
-      "change_pct": -1.11,
+      "last_price": 214.0500030517578,
+      "change_pct": -0.62,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "range_bound",
@@ -10475,7 +10475,7 @@
         "symbol": "NVDA",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 212.985001,
+        "price": 214.050003,
         "stop_loss": null,
         "take_profit": null,
         "regime": "range_bound",
@@ -10485,7 +10485,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 212.985001,
+            "price": 214.050003,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10499,7 +10499,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 212.985001,
+            "price": 214.050003,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10513,7 +10513,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 212.985001,
+            "price": 214.050003,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10527,7 +10527,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 212.985001,
+            "price": 214.050003,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10579,9 +10579,9 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
@@ -10633,30 +10633,30 @@
           "num_trades": 69
         },
         "momentum": {
-          "total_return_pct": -22.18,
-          "cagr_pct": -2.48,
-          "sharpe_ratio": -0.058,
-          "sortino_ratio": -0.082,
-          "calmar_ratio": -0.042,
-          "mar_ratio": -0.042,
+          "total_return_pct": -22.53,
+          "cagr_pct": -2.53,
+          "sharpe_ratio": -0.06,
+          "sortino_ratio": -0.085,
+          "calmar_ratio": -0.043,
+          "mar_ratio": -0.043,
           "omega_ratio": 1.017,
-          "sqn": -0.075,
+          "sqn": -0.079,
           "max_drawdown_pct": -58.9,
           "win_rate_pct": 40.16,
-          "profit_factor": 0.985,
-          "expectancy": -65.36,
-          "recovery_factor": -0.377,
+          "profit_factor": 0.984,
+          "expectancy": -68.2,
+          "recovery_factor": -0.382,
           "num_trades": 122
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 41.7,
-        "macd_hist": -1.0778,
-        "sma_20": 222.8913,
-        "sma_50": 221.9105,
-        "volume_ratio": 0.08,
-        "atr_pct": 2.67
+        "rsi_14": 42.6,
+        "macd_hist": -1.0099,
+        "sma_20": 222.9445,
+        "sma_50": 221.9318,
+        "volume_ratio": 0.1,
+        "atr_pct": 2.65
       },
       "news": [],
       "news_sentiment": {
@@ -10669,20 +10669,20 @@
     {
       "symbol": "TSLA",
       "asset_class": "equity",
-      "last_price": 401.1401062011719,
-      "change_pct": -0.76,
+      "last_price": 404.2961120605469,
+      "change_pct": 0.02,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "range_bound",
         "trend_strength_adx": 15.55,
-        "volatility_percentile": 0.389,
+        "volatility_percentile": 0.377,
         "direction": 1
       },
       "signal": {
         "symbol": "TSLA",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 401.140106,
+        "price": 404.296112,
         "stop_loss": null,
         "take_profit": null,
         "regime": "range_bound",
@@ -10692,7 +10692,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 401.140106,
+            "price": 404.296112,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10706,7 +10706,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 401.140106,
+            "price": 404.296112,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10720,7 +10720,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 401.140106,
+            "price": 404.296112,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10734,7 +10734,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 401.140106,
+            "price": 404.296112,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10786,9 +10786,9 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
@@ -10824,46 +10824,46 @@
           "num_trades": 23
         },
         "breakout": {
-          "total_return_pct": 45.74,
-          "cagr_pct": 3.85,
-          "sharpe_ratio": 0.188,
-          "sortino_ratio": 0.255,
-          "calmar_ratio": 0.064,
-          "mar_ratio": 0.064,
-          "omega_ratio": 1.075,
-          "sqn": 0.346,
+          "total_return_pct": 46.89,
+          "cagr_pct": 3.93,
+          "sharpe_ratio": 0.19,
+          "sortino_ratio": 0.258,
+          "calmar_ratio": 0.065,
+          "mar_ratio": 0.065,
+          "omega_ratio": 1.076,
+          "sqn": 0.353,
           "max_drawdown_pct": -60.33,
           "win_rate_pct": 43.68,
-          "profit_factor": 1.088,
-          "expectancy": 649.72,
-          "recovery_factor": 0.758,
+          "profit_factor": 1.089,
+          "expectancy": 662.91,
+          "recovery_factor": 0.777,
           "num_trades": 87
         },
         "momentum": {
-          "total_return_pct": -54.12,
-          "cagr_pct": -7.52,
-          "sharpe_ratio": -0.188,
-          "sortino_ratio": -0.25,
-          "calmar_ratio": -0.104,
-          "mar_ratio": -0.104,
-          "omega_ratio": 0.982,
-          "sqn": -0.624,
+          "total_return_pct": -53.76,
+          "cagr_pct": -7.44,
+          "sharpe_ratio": -0.186,
+          "sortino_ratio": -0.247,
+          "calmar_ratio": -0.103,
+          "mar_ratio": -0.103,
+          "omega_ratio": 0.983,
+          "sqn": -0.619,
           "max_drawdown_pct": -72.03,
           "win_rate_pct": 36.59,
-          "profit_factor": 0.877,
-          "expectancy": -372.97,
-          "recovery_factor": -0.751,
+          "profit_factor": 0.878,
+          "expectancy": -370.03,
+          "recovery_factor": -0.746,
           "num_trades": 123
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 61.8,
-        "macd_hist": 3.2325,
-        "sma_20": 379.1285,
-        "sma_50": 368.4658,
-        "volume_ratio": 0.07,
-        "atr_pct": 3.27
+        "rsi_14": 63.6,
+        "macd_hist": 3.4339,
+        "sma_20": 379.2863,
+        "sma_50": 368.5289,
+        "volume_ratio": 0.09,
+        "atr_pct": 3.25
       },
       "news": [],
       "news_sentiment": {
@@ -10876,20 +10876,20 @@
     {
       "symbol": "SPY",
       "asset_class": "etf",
-      "last_price": 767.7150268554688,
-      "change_pct": -0.59,
+      "last_price": 768.8109130859375,
+      "change_pct": -0.45,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "range_bound",
         "trend_strength_adx": 13.37,
-        "volatility_percentile": 0.226,
+        "volatility_percentile": 0.218,
         "direction": -1
       },
       "signal": {
         "symbol": "SPY",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 767.715027,
+        "price": 768.810913,
         "stop_loss": null,
         "take_profit": null,
         "regime": "range_bound",
@@ -10899,7 +10899,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 767.715027,
+            "price": 768.810913,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10913,7 +10913,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 767.715027,
+            "price": 768.810913,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10927,7 +10927,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 767.715027,
+            "price": 768.810913,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10941,7 +10941,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 767.715027,
+            "price": 768.810913,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -10993,9 +10993,9 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
@@ -11047,30 +11047,30 @@
           "num_trades": 62
         },
         "momentum": {
-          "total_return_pct": 23.38,
-          "cagr_pct": 2.13,
-          "sharpe_ratio": -0.131,
-          "sortino_ratio": -0.178,
-          "calmar_ratio": 0.109,
-          "mar_ratio": 0.109,
+          "total_return_pct": 23.55,
+          "cagr_pct": 2.14,
+          "sharpe_ratio": -0.13,
+          "sortino_ratio": -0.177,
+          "calmar_ratio": 0.11,
+          "mar_ratio": 0.11,
           "omega_ratio": 1.069,
-          "sqn": 0.97,
+          "sqn": 0.975,
           "max_drawdown_pct": -19.48,
           "win_rate_pct": 46.36,
-          "profit_factor": 1.247,
-          "expectancy": 324.77,
-          "recovery_factor": 1.2,
+          "profit_factor": 1.249,
+          "expectancy": 326.37,
+          "recovery_factor": 1.209,
           "num_trades": 110
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 49.3,
-        "macd_hist": -0.5018,
-        "sma_20": 771.0817,
-        "sma_50": 766.8418,
-        "volume_ratio": 0.1,
-        "atr_pct": 0.89
+        "rsi_14": 50.3,
+        "macd_hist": -0.4319,
+        "sma_20": 771.1365,
+        "sma_50": 766.8637,
+        "volume_ratio": 0.12,
+        "atr_pct": 0.88
       },
       "news": [],
       "news_sentiment": {
@@ -11083,20 +11083,20 @@
     {
       "symbol": "QQQ",
       "asset_class": "etf",
-      "last_price": 712.52001953125,
-      "change_pct": -1.8,
+      "last_price": 715.177978515625,
+      "change_pct": -1.44,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bull_trend",
         "trend_strength_adx": 25.67,
-        "volatility_percentile": 0.659,
+        "volatility_percentile": 0.647,
         "direction": -1
       },
       "signal": {
         "symbol": "QQQ",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 712.52002,
+        "price": 715.177979,
         "stop_loss": null,
         "take_profit": null,
         "regime": "bull_trend",
@@ -11106,7 +11106,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 712.52002,
+            "price": 715.177979,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11120,7 +11120,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 712.52002,
+            "price": 715.177979,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11134,7 +11134,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 712.52002,
+            "price": 715.177979,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11148,7 +11148,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 712.52002,
+            "price": 715.177979,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11200,25 +11200,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": -13.8,
-          "cagr_pct": -1.48,
-          "sharpe_ratio": -0.205,
-          "sortino_ratio": -0.262,
-          "calmar_ratio": -0.043,
-          "mar_ratio": -0.043,
+          "total_return_pct": -13.49,
+          "cagr_pct": -1.44,
+          "sharpe_ratio": -0.203,
+          "sortino_ratio": -0.259,
+          "calmar_ratio": -0.042,
+          "mar_ratio": -0.042,
           "omega_ratio": 1.003,
-          "sqn": -0.066,
-          "max_drawdown_pct": -34.44,
-          "win_rate_pct": 39.25,
-          "profit_factor": 0.986,
-          "expectancy": -32.63,
-          "recovery_factor": -0.401,
+          "sqn": -0.06,
+          "max_drawdown_pct": -34.45,
+          "win_rate_pct": 40.19,
+          "profit_factor": 0.987,
+          "expectancy": -29.69,
+          "recovery_factor": -0.391,
           "num_trades": 107
         },
         "mean_reversion": {
@@ -11238,46 +11238,46 @@
           "num_trades": 22
         },
         "breakout": {
-          "total_return_pct": -12.83,
-          "cagr_pct": -1.37,
-          "sharpe_ratio": -0.345,
-          "sortino_ratio": -0.501,
+          "total_return_pct": -13.16,
+          "cagr_pct": -1.41,
+          "sharpe_ratio": -0.348,
+          "sortino_ratio": -0.505,
           "calmar_ratio": -0.034,
           "mar_ratio": -0.034,
-          "omega_ratio": 0.986,
-          "sqn": -0.24,
+          "omega_ratio": 0.985,
+          "sqn": -0.25,
           "max_drawdown_pct": -40.83,
           "win_rate_pct": 37.93,
-          "profit_factor": 0.932,
-          "expectancy": -135.16,
-          "recovery_factor": -0.314,
+          "profit_factor": 0.929,
+          "expectancy": -140.81,
+          "recovery_factor": -0.322,
           "num_trades": 58
         },
         "momentum": {
-          "total_return_pct": 47.5,
-          "cagr_pct": 3.97,
-          "sharpe_ratio": 0.059,
-          "sortino_ratio": 0.08,
-          "calmar_ratio": 0.146,
-          "mar_ratio": 0.146,
-          "omega_ratio": 1.094,
-          "sqn": 1.037,
+          "total_return_pct": 49.57,
+          "cagr_pct": 4.12,
+          "sharpe_ratio": 0.069,
+          "sortino_ratio": 0.094,
+          "calmar_ratio": 0.152,
+          "mar_ratio": 0.152,
+          "omega_ratio": 1.097,
+          "sqn": 1.059,
           "max_drawdown_pct": -27.13,
           "win_rate_pct": 45.05,
-          "profit_factor": 1.263,
-          "expectancy": 563.11,
-          "recovery_factor": 1.751,
+          "profit_factor": 1.268,
+          "expectancy": 583.48,
+          "recovery_factor": 1.827,
           "num_trades": 111
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 43.2,
-        "macd_hist": -1.9846,
-        "sma_20": 731.001,
-        "sma_50": 725.0414,
-        "volume_ratio": 0.12,
-        "atr_pct": 1.58
+        "rsi_14": 44.4,
+        "macd_hist": -1.815,
+        "sma_20": 731.1339,
+        "sma_50": 725.0946,
+        "volume_ratio": 0.15,
+        "atr_pct": 1.57
       },
       "news": [],
       "news_sentiment": {
@@ -11290,8 +11290,8 @@
     {
       "symbol": "GC=F",
       "asset_class": "metal",
-      "last_price": 4036.0,
-      "change_pct": -0.39,
+      "last_price": 4042.89990234375,
+      "change_pct": -0.21,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bear_trend",
@@ -11303,9 +11303,9 @@
         "symbol": "GC=F",
         "final_action": "SELL",
         "confidence": 0.2,
-        "price": 4036.0,
-        "stop_loss": 4185.29849,
-        "take_profit": 3737.403021,
+        "price": 4042.899902,
+        "stop_loss": 4192.198392,
+        "take_profit": 3744.302923,
         "regime": "bear_trend",
         "votes": [
           {
@@ -11313,9 +11313,9 @@
             "strategy": "trend_following",
             "action": "SELL",
             "confidence": 0.572,
-            "price": 4036.0,
-            "stop_loss": 4185.29849,
-            "take_profit": 3737.403021,
+            "price": 4042.899902,
+            "stop_loss": 4192.198392,
+            "take_profit": 3744.302923,
             "reasons": [
               "EMA20 < EMA50 (downtrend)",
               "ADX=27.2 >= 20.0 (strong trend)",
@@ -11329,7 +11329,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 4036.0,
+            "price": 4042.899902,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11343,7 +11343,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 4036.0,
+            "price": 4042.899902,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11357,7 +11357,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 4036.0,
+            "price": 4042.899902,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11409,25 +11409,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": 84.35,
-          "cagr_pct": 6.32,
-          "sharpe_ratio": 0.221,
-          "sortino_ratio": 0.291,
+          "total_return_pct": 84.05,
+          "cagr_pct": 6.31,
+          "sharpe_ratio": 0.22,
+          "sortino_ratio": 0.289,
           "calmar_ratio": 0.191,
           "mar_ratio": 0.191,
           "omega_ratio": 1.109,
-          "sqn": 1.89,
+          "sqn": 1.885,
           "max_drawdown_pct": -33.05,
           "win_rate_pct": 44.23,
-          "profit_factor": 1.573,
-          "expectancy": 913.89,
-          "recovery_factor": 2.552,
+          "profit_factor": 1.571,
+          "expectancy": 911.01,
+          "recovery_factor": 2.543,
           "num_trades": 104
         },
         "mean_reversion": {
@@ -11447,45 +11447,45 @@
           "num_trades": 28
         },
         "breakout": {
-          "total_return_pct": 54.14,
-          "cagr_pct": 4.43,
-          "sharpe_ratio": 0.084,
-          "sortino_ratio": 0.116,
-          "calmar_ratio": 0.183,
-          "mar_ratio": 0.183,
+          "total_return_pct": 53.88,
+          "cagr_pct": 4.42,
+          "sharpe_ratio": 0.083,
+          "sortino_ratio": 0.114,
+          "calmar_ratio": 0.182,
+          "mar_ratio": 0.182,
           "omega_ratio": 1.139,
-          "sqn": 1.642,
+          "sqn": 1.634,
           "max_drawdown_pct": -24.26,
           "win_rate_pct": 49.06,
-          "profit_factor": 1.662,
-          "expectancy": 1131.47,
-          "recovery_factor": 2.232,
+          "profit_factor": 1.659,
+          "expectancy": 1126.55,
+          "recovery_factor": 2.221,
           "num_trades": 53
         },
         "momentum": {
-          "total_return_pct": -20.38,
-          "cagr_pct": -2.26,
-          "sharpe_ratio": -0.516,
-          "sortino_ratio": -0.697,
+          "total_return_pct": -20.51,
+          "cagr_pct": -2.28,
+          "sharpe_ratio": -0.517,
+          "sortino_ratio": -0.699,
           "calmar_ratio": -0.09,
           "mar_ratio": -0.09,
           "omega_ratio": 0.964,
-          "sqn": -0.299,
+          "sqn": -0.303,
           "max_drawdown_pct": -25.15,
           "win_rate_pct": 37.19,
-          "profit_factor": 0.94,
-          "expectancy": -74.7,
-          "recovery_factor": -0.81,
+          "profit_factor": 0.939,
+          "expectancy": -75.81,
+          "recovery_factor": -0.816,
           "num_trades": 121
         }
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 36.3,
-        "macd_hist": -3.291,
-        "sma_20": 4128.44,
-        "sma_50": 4308.34,
-        "volume_ratio": 0.53,
+        "rsi_14": 36.8,
+        "macd_hist": -2.8506,
+        "sma_20": 4128.785,
+        "sma_50": 4308.478,
+        "volume_ratio": 0.54,
         "atr_pct": 1.85
       },
       "news": [],
@@ -11499,12 +11499,12 @@
     {
       "symbol": "SI=F",
       "asset_class": "metal",
-      "last_price": 52.3650016784668,
-      "change_pct": -2.04,
+      "last_price": 52.40999984741211,
+      "change_pct": -1.96,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bear_trend",
-        "trend_strength_adx": 37.61,
+        "trend_strength_adx": 37.66,
         "volatility_percentile": 0.095,
         "direction": -1
       },
@@ -11512,22 +11512,22 @@
         "symbol": "SI=F",
         "final_action": "SELL",
         "confidence": 0.487,
-        "price": 52.365002,
-        "stop_loss": 54.902643,
-        "take_profit": 47.289719,
+        "price": 52.41,
+        "stop_loss": 54.971927,
+        "take_profit": 47.286146,
         "regime": "bear_trend",
         "votes": [
           {
             "symbol": "SI=F",
             "strategy": "trend_following",
             "action": "SELL",
-            "confidence": 0.676,
-            "price": 52.365002,
-            "stop_loss": 54.902643,
-            "take_profit": 47.289719,
+            "confidence": 0.677,
+            "price": 52.41,
+            "stop_loss": 54.971927,
+            "take_profit": 47.286146,
             "reasons": [
               "EMA20 < EMA50 (downtrend)",
-              "ADX=37.6 >= 20.0 (strong trend)",
+              "ADX=37.7 >= 20.0 (strong trend)",
               "SuperTrend direction bearish"
             ],
             "timestamp": null,
@@ -11538,7 +11538,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 52.365002,
+            "price": 52.41,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11552,12 +11552,12 @@
             "strategy": "breakout",
             "action": "SELL",
             "confidence": 0.9,
-            "price": 52.365002,
-            "stop_loss": 54.902643,
-            "take_profit": 47.289719,
+            "price": 52.41,
+            "stop_loss": 54.971927,
+            "take_profit": 47.286146,
             "reasons": [
               "Close broke below 20-bar Donchian lower channel",
-              "Volume ratio 18.94x average (confirmed)"
+              "Volume ratio 18.98x average (confirmed)"
             ],
             "timestamp": null,
             "weight": 1.2
@@ -11567,7 +11567,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 52.365002,
+            "price": 52.41,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11619,24 +11619,24 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": -55.34,
+          "total_return_pct": -55.38,
           "cagr_pct": -7.77,
-          "sharpe_ratio": -0.373,
+          "sharpe_ratio": -0.374,
           "sortino_ratio": -0.501,
           "calmar_ratio": -0.104,
           "mar_ratio": -0.104,
           "omega_ratio": 0.947,
-          "sqn": -1.227,
+          "sqn": -1.228,
           "max_drawdown_pct": -74.9,
           "win_rate_pct": 31.4,
           "profit_factor": 0.765,
-          "expectancy": -400.66,
+          "expectancy": -400.96,
           "recovery_factor": -0.739,
           "num_trades": 121
         },
@@ -11657,19 +11657,19 @@
           "num_trades": 25
         },
         "breakout": {
-          "total_return_pct": 45.76,
-          "cagr_pct": 3.85,
+          "total_return_pct": 45.64,
+          "cagr_pct": 3.84,
           "sharpe_ratio": 0.035,
-          "sortino_ratio": 0.053,
+          "sortino_ratio": 0.052,
           "calmar_ratio": 0.143,
           "mar_ratio": 0.143,
           "omega_ratio": 1.183,
-          "sqn": 1.247,
+          "sqn": 1.244,
           "max_drawdown_pct": -26.91,
           "win_rate_pct": 43.18,
-          "profit_factor": 1.565,
-          "expectancy": 1144.1,
-          "recovery_factor": 1.7,
+          "profit_factor": 1.564,
+          "expectancy": 1141.36,
+          "recovery_factor": 1.696,
           "num_trades": 44
         },
         "momentum": {
@@ -11691,12 +11691,12 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 28.1,
-        "macd_hist": -0.323,
-        "sma_20": 57.2565,
-        "sma_50": 62.1098,
-        "volume_ratio": 18.94,
-        "atr_pct": 2.42
+        "rsi_14": 28.2,
+        "macd_hist": -0.3201,
+        "sma_20": 57.2588,
+        "sma_50": 62.1107,
+        "volume_ratio": 18.98,
+        "atr_pct": 2.44
       },
       "news": [],
       "news_sentiment": {
@@ -11709,22 +11709,22 @@
     {
       "symbol": "CL=F",
       "asset_class": "energy",
-      "last_price": 100.4000015258789,
-      "change_pct": -2.32,
+      "last_price": 100.11000061035156,
+      "change_pct": -2.6,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bull_trend",
         "trend_strength_adx": 32.52,
-        "volatility_percentile": 0.417,
+        "volatility_percentile": 0.433,
         "direction": 1
       },
       "signal": {
         "symbol": "CL=F",
         "final_action": "BUY",
         "confidence": 0.218,
-        "price": 100.400002,
-        "stop_loss": 91.95091,
-        "take_profit": 117.298185,
+        "price": 100.110001,
+        "stop_loss": 91.628052,
+        "take_profit": 117.073898,
         "regime": "bull_trend",
         "votes": [
           {
@@ -11732,9 +11732,9 @@
             "strategy": "trend_following",
             "action": "BUY",
             "confidence": 0.625,
-            "price": 100.400002,
-            "stop_loss": 91.95091,
-            "take_profit": 117.298185,
+            "price": 100.110001,
+            "stop_loss": 91.628052,
+            "take_profit": 117.073898,
             "reasons": [
               "EMA20 > EMA50 (uptrend)",
               "ADX=32.5 >= 20.0 (strong trend)",
@@ -11748,7 +11748,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 100.400002,
+            "price": 100.110001,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11762,7 +11762,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 100.400002,
+            "price": 100.110001,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11776,7 +11776,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 100.400002,
+            "price": 100.110001,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11828,9 +11828,9 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
@@ -11900,12 +11900,12 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 55.7,
-        "macd_hist": 0.2845,
-        "sma_20": 96.7065,
-        "sma_50": 94.2722,
-        "volume_ratio": 0.36,
-        "atr_pct": 4.21
+        "rsi_14": 55.1,
+        "macd_hist": 0.266,
+        "sma_20": 96.692,
+        "sma_50": 94.2664,
+        "volume_ratio": 0.38,
+        "atr_pct": 4.24
       },
       "news": [],
       "news_sentiment": {
@@ -11918,22 +11918,22 @@
     {
       "symbol": "EURUSD=X",
       "asset_class": "forex",
-      "last_price": 1.1128422021865845,
-      "change_pct": -0.01,
+      "last_price": 1.1122233867645264,
+      "change_pct": -0.07,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bear_trend",
         "trend_strength_adx": 47.77,
-        "volatility_percentile": 0.472,
+        "volatility_percentile": 0.46,
         "direction": -1
       },
       "signal": {
         "symbol": "EURUSD=X",
         "final_action": "SELL",
         "confidence": 0.271,
-        "price": 1.112842,
-        "stop_loss": 1.125004,
-        "take_profit": 1.088519,
+        "price": 1.112223,
+        "stop_loss": 1.124385,
+        "take_profit": 1.0879,
         "regime": "bear_trend",
         "votes": [
           {
@@ -11941,9 +11941,9 @@
             "strategy": "trend_following",
             "action": "SELL",
             "confidence": 0.778,
-            "price": 1.112842,
-            "stop_loss": 1.125004,
-            "take_profit": 1.088519,
+            "price": 1.112223,
+            "stop_loss": 1.124385,
+            "take_profit": 1.0879,
             "reasons": [
               "EMA20 < EMA50 (downtrend)",
               "ADX=47.8 >= 20.0 (strong trend)",
@@ -11957,7 +11957,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 1.112842,
+            "price": 1.112223,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11971,7 +11971,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 1.112842,
+            "price": 1.112223,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -11985,7 +11985,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 1.112842,
+            "price": 1.112223,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12037,25 +12037,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": -12.8,
-          "cagr_pct": -1.32,
-          "sharpe_ratio": -0.769,
-          "sortino_ratio": -1.071,
+          "total_return_pct": -12.76,
+          "cagr_pct": -1.31,
+          "sharpe_ratio": -0.768,
+          "sortino_ratio": -1.07,
           "calmar_ratio": -0.056,
           "mar_ratio": -0.056,
-          "omega_ratio": 0.969,
-          "sqn": -0.303,
+          "omega_ratio": 0.97,
+          "sqn": -0.301,
           "max_drawdown_pct": -23.55,
           "win_rate_pct": 31.51,
           "profit_factor": 0.922,
-          "expectancy": -78.66,
-          "recovery_factor": -0.544,
+          "expectancy": -78.02,
+          "recovery_factor": -0.542,
           "num_trades": 73
         },
         "mean_reversion": {
@@ -12109,7 +12109,7 @@
       },
       "feature_count": 114,
       "indicators": {
-        "rsi_14": 26.1,
+        "rsi_14": 25.6,
         "macd_hist": 0.0003,
         "sma_20": 1.1207,
         "sma_50": 1.141,
@@ -12127,8 +12127,8 @@
     {
       "symbol": "BTC/USDT",
       "asset_class": "crypto",
-      "last_price": 79961.4,
-      "change_pct": -1.71,
+      "last_price": 79953.1,
+      "change_pct": -1.72,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "low_volatility",
@@ -12140,7 +12140,7 @@
         "symbol": "BTC/USDT",
         "final_action": "HOLD",
         "confidence": 0.0,
-        "price": 79961.4,
+        "price": 79953.1,
         "stop_loss": null,
         "take_profit": null,
         "regime": "low_volatility",
@@ -12150,7 +12150,7 @@
             "strategy": "trend_following",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 79961.4,
+            "price": 79953.1,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12164,7 +12164,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 79961.4,
+            "price": 79953.1,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12178,7 +12178,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 79961.4,
+            "price": 79953.1,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12192,7 +12192,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 79961.4,
+            "price": 79953.1,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12244,24 +12244,24 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": 18.73,
-          "cagr_pct": 15.51,
+          "total_return_pct": 18.72,
+          "cagr_pct": 15.5,
           "sharpe_ratio": 0.485,
-          "sortino_ratio": 0.765,
-          "calmar_ratio": 0.645,
-          "mar_ratio": 0.645,
+          "sortino_ratio": 0.764,
+          "calmar_ratio": 0.644,
+          "mar_ratio": 0.644,
           "omega_ratio": 1.122,
-          "sqn": 0.476,
+          "sqn": 0.475,
           "max_drawdown_pct": -24.06,
           "win_rate_pct": 45.45,
           "profit_factor": 1.382,
-          "expectancy": 1823.47,
+          "expectancy": 1822.35,
           "recovery_factor": 0.778,
           "num_trades": 11
         },
@@ -12317,9 +12317,9 @@
       "feature_count": 114,
       "indicators": {
         "rsi_14": 42.0,
-        "macd_hist": -251.8668,
-        "sma_20": 81798.96,
-        "sma_50": 81976.496,
+        "macd_hist": -252.3964,
+        "sma_20": 81798.545,
+        "sma_50": 81976.33,
         "volume_ratio": 0.51,
         "atr_pct": 2.44
       },
@@ -12334,8 +12334,8 @@
     {
       "symbol": "ETH/USDT",
       "asset_class": "crypto",
-      "last_price": 2317.32,
-      "change_pct": -1.8,
+      "last_price": 2316.96,
+      "change_pct": -1.81,
       "as_of": "2026-10-29 00:00:00",
       "regime": {
         "state": "bear_trend",
@@ -12347,9 +12347,9 @@
         "symbol": "ETH/USDT",
         "final_action": "SELL",
         "confidence": 0.204,
-        "price": 2317.32,
-        "stop_loss": 2488.623767,
-        "take_profit": 1974.712466,
+        "price": 2316.96,
+        "stop_loss": 2488.263767,
+        "take_profit": 1974.352466,
         "regime": "bear_trend",
         "votes": [
           {
@@ -12357,9 +12357,9 @@
             "strategy": "trend_following",
             "action": "SELL",
             "confidence": 0.585,
-            "price": 2317.32,
-            "stop_loss": 2488.623767,
-            "take_profit": 1974.712466,
+            "price": 2316.96,
+            "stop_loss": 2488.263767,
+            "take_profit": 1974.352466,
             "reasons": [
               "EMA20 < EMA50 (downtrend)",
               "ADX=28.5 >= 20.0 (strong trend)",
@@ -12373,7 +12373,7 @@
             "strategy": "mean_reversion",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 2317.32,
+            "price": 2316.96,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12387,7 +12387,7 @@
             "strategy": "breakout",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 2317.32,
+            "price": 2316.96,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12401,7 +12401,7 @@
             "strategy": "momentum",
             "action": "HOLD",
             "confidence": 0.3,
-            "price": 2317.32,
+            "price": 2316.96,
             "stop_loss": null,
             "take_profit": null,
             "reasons": [
@@ -12453,25 +12453,25 @@
         "drawdown_circuit_breaker_tripped": false,
         "halted": false,
         "breached": [],
-        "daily_pnl_pct": 0.95,
-        "weekly_pnl_pct": 0.93,
-        "monthly_pnl_pct": 0.93
+        "daily_pnl_pct": 1.01,
+        "weekly_pnl_pct": 0.99,
+        "monthly_pnl_pct": 0.99
       },
       "backtest": {
         "trend_following": {
-          "total_return_pct": 45.24,
-          "cagr_pct": 36.82,
+          "total_return_pct": 45.26,
+          "cagr_pct": 36.84,
           "sharpe_ratio": 0.825,
-          "sortino_ratio": 1.298,
-          "calmar_ratio": 1.141,
-          "mar_ratio": 1.141,
+          "sortino_ratio": 1.299,
+          "calmar_ratio": 1.142,
+          "mar_ratio": 1.142,
           "omega_ratio": 1.197,
           "sqn": 0.789,
           "max_drawdown_pct": -32.26,
           "win_rate_pct": 60.0,
-          "profit_factor": 1.789,
-          "expectancy": 4653.08,
-          "recovery_factor": 1.402,
+          "profit_factor": 1.79,
+          "expectancy": 4655.26,
+          "recovery_factor": 1.403,
           "num_trades": 10
         },
         "mean_reversion": {
@@ -12526,10 +12526,10 @@
       "feature_count": 114,
       "indicators": {
         "rsi_14": 35.1,
-        "macd_hist": -6.0553,
-        "sma_20": 2411.8815,
-        "sma_50": 2532.6324,
-        "volume_ratio": 0.45,
+        "macd_hist": -6.0782,
+        "sma_20": 2411.8635,
+        "sma_50": 2532.6252,
+        "volume_ratio": 0.46,
         "atr_pct": 3.7
       },
       "news": [],
@@ -12551,7 +12551,7 @@
       "zscore": 0.0,
       "hedge_ratio": 0.0,
       "cointegrated": false,
-      "p_value": 0.0725,
+      "p_value": 0.0727,
       "reasons": [
         "Pair failed cointegration test (p=0.073 >= 0.05); spread is not statistically mean-reverting, skipping"
       ]
@@ -12565,9 +12565,9 @@
       "zscore": 0.0,
       "hedge_ratio": 0.0,
       "cointegrated": false,
-      "p_value": 0.0654,
+      "p_value": 0.0665,
       "reasons": [
-        "Pair failed cointegration test (p=0.065 >= 0.05); spread is not statistically mean-reverting, skipping"
+        "Pair failed cointegration test (p=0.066 >= 0.05); spread is not statistically mean-reverting, skipping"
       ]
     },
     {
@@ -12579,7 +12579,7 @@
       "zscore": 0.0,
       "hedge_ratio": 0.0,
       "cointegrated": false,
-      "p_value": 0.3494,
+      "p_value": 0.3493,
       "reasons": [
         "Pair failed cointegration test (p=0.349 >= 0.05); spread is not statistically mean-reverting, skipping"
       ]
